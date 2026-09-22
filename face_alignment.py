@@ -1,5 +1,7 @@
 import argparse
 import sys
+from pathlib import Path
+from urllib.request import urlopen
 
 import cv2
 
@@ -9,6 +11,11 @@ TARGET_WIDTH_RATIO = 0.34
 TARGET_HEIGHT_RATIO = 0.46
 SIZE_TOLERANCE = 0.12
 CENTER_TOLERANCE = 0.10
+CASCADE_FILENAME = "haarcascade_frontalface_default.xml"
+CASCADE_URL = (
+    "https://raw.githubusercontent.com/opencv/opencv/4.x/data/haarcascades/"
+    "haarcascade_frontalface_default.xml"
+)
 
 
 def parse_args():
@@ -98,17 +105,38 @@ def draw_label(frame, text, color, position):
     )
 
 
-def run(camera_index, min_face_size):
-    if not hasattr(cv2, "CascadeClassifier"):
+def create_face_detector():
+    cascade_path = Path(__file__).with_name("models") / CASCADE_FILENAME
+    if not cascade_path.exists():
+        cascade_path.parent.mkdir(exist_ok=True)
+        try:
+            with urlopen(CASCADE_URL, timeout=15) as response:
+                cascade_path.write_bytes(response.read())
+        except Exception as error:
+            raise RuntimeError(
+                "The face detector model is missing and could not be downloaded. "
+                f"Download {CASCADE_URL} to {cascade_path}."
+            ) from error
+
+    xobjdetect = getattr(cv2, "xobjdetect", None)
+    if xobjdetect is not None and hasattr(xobjdetect, "CascadeClassifier"):
+        detector = xobjdetect.CascadeClassifier(str(cascade_path))
+    elif hasattr(cv2, "CascadeClassifier"):
+        detector = cv2.CascadeClassifier(str(cascade_path))
+    else:
         raise RuntimeError(
-            "This script requires opencv-python 4.x. "
-            "Install it with: python -m pip install --force-reinstall "
-            "\"opencv-python>=4.10.0,<5\""
+            "This OpenCV build does not provide a cascade classifier. "
+            "Reinstall with: python -m pip install --force-reinstall "
+            '"opencv-contrib-python>=5"'
         )
 
-    face_cascade = cv2.CascadeClassifier(
-        cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-    )
+    if detector.empty():
+        raise RuntimeError(f"Could not load the face detector model: {cascade_path}")
+    return detector
+
+
+def run(camera_index, min_face_size):
+    face_cascade = create_face_detector()
     if face_cascade.empty():
         raise RuntimeError("Could not load OpenCV's face detector.")
 

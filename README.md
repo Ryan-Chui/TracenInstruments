@@ -10,7 +10,10 @@ Create and activate a virtual environment if desired, then install the dependenc
 python -m pip install -r requirements.txt
 ```
 
-The project requires `opencv-python` 4.x because the face detector uses `CascadeClassifier`.
+The project requires OpenCV 5. The script uses
+`cv2.xobjdetect.CascadeClassifier` when that module is available and falls back
+to OpenCV 5's built-in `cv2.CascadeClassifier` for wheels that do not expose
+the `xobjdetect` namespace.
 
 ## Run
 
@@ -36,8 +39,11 @@ The camera window displays:
 - A message to move left, right, up, or down when the face is off-center
 - `aligned` when the face is within the target size and position tolerances
 
-If OpenCV 5 is installed, replace it with the supported version:
+On first run, the script downloads the official OpenCV Haar cascade model into
+the ignored `models` folder.
+
+If a different OpenCV version is installed, replace it with the supported version:
 
 ```powershell
-python -m pip install --force-reinstall "opencv-python>=4.10.0,<5"
+python -m pip install --force-reinstall "opencv-contrib-python>=5"
 ```
