@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Facial Scan Viewport</title>
+<style>
+  :root {
+    --ink: #16202a;
+    --ink-2: #1e2b38;
+    --rule: #2f3f50;
+    --text: #dfe7ee;
+    --muted: #8fa1b3;
+    --paper: #f4f6f8;
+    --warn: #f0b35a;
+    --sans: "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--ink); color: var(--text); font: 14px/1.45 var(--sans); }
+
+  .app { display: grid; grid-template-columns: 340px minmax(0, 1fr); height: 100%; }
+
+  aside {
+    background: var(--ink);
+    border-right: 1px solid var(--rule);
+    padding: 20px 18px 24px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+  .sub { margin: 4px 0 0; color: var(--muted); }
+
+  fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  legend { padding: 0; margin-bottom: 10px; font-weight: 600; font-size: 15px; }
+  label.field { display: flex; flex-direction: column; gap: 5px; color: var(--muted); }
+
+  textarea, select, input[type="number"] {
+    width: 100%; background: var(--ink-2); color: var(--text);
+    border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px;
+    font: inherit;
+  }
+  textarea { font-family: var(--mono); font-size: 12.5px; line-height: 1.5; height: 210px; resize: vertical; white-space: pre; }
+  :focus-visible { outline: 2px solid #8db4ff; outline-offset: 2px; }
+
+  button {
+    font: inherit; cursor: pointer; border-radius: 6px; padding: 9px 12px;
+    border: 1px solid var(--rule); background: var(--ink-2); color: var(--text);
+  }
+  button.primary { background: var(--paper); color: var(--ink); border-color: var(--paper); font-weight: 650; }
+  button:hover { filter: brightness(1.08); }
+
+  .seg { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { padding: 9px 4px; text-align: center; cursor: pointer; background: var(--ink-2); color: var(--muted); border-right: 1px solid var(--rule); }
+  .seg label:last-of-type { border-right: 0; }
+  .seg input:checked + label { background: var(--paper); color: var(--ink); font-weight: 650; }
+  .seg input:focus-visible + label { outline: 2px solid #8db4ff; outline-offset: -2px; }
+
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row input[type="range"] { flex: 1; accent-color: #b9c9db; }
+  .check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .check input { accent-color: #b9c9db; width: 16px; height: 16px; }
+
+  #status { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: pre-line; }
+  #warn { margin: 0; color: var(--warn); white-space: pre-line; }
+  #warn:empty { display: none; }
+
+  main { position: relative; min-width: 0; background: var(--paper); }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #gl { touch-action: none; cursor: grab; }
+  #overlay { pointer-events: none; }
+  .hint { position: absolute; left: 14px; bottom: 12px; color: #5b6b7b; font-size: 12.5px; pointer-events: none; }
+  #reset { position: absolute; right: 14px; top: 12px; background: #fff; color: var(--ink); border-color: #cfd7df; }
+
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 62vh auto; height: auto; min-height: 100%; }
+    main { order: -1; }
+    aside { border-right: 0; border-top: 1px solid var(--rule); overflow: visible; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div>
+      <h1>Facial Scan Viewport</h1>
+      <p class="sub">Paste points, pick a mesh, drag to rotate. In the real program, these points will be generated from the facial scan.</p>
+    </div>
+    <div>
+      <h1>Admin Buttons</h1>
+      <p class="sub">Unwired buttons. Just for proof of concept.</p>
+      <button type="'button">Access/Modify Verified User List</button>
+      <button type="'button">Test Facial Scanner</button>
+    </div>
+
+    <fieldset>
+      <legend>Points</legend>
+      <label class="field">Example data
+        <select id="example">
+          <option value="">Choose an example…</option>
+          <option value="surface">Surface on a regular grid</option>
+          <option value="scatter">Scattered points</option>
+          <option value="sphere">Sphere, row by row</option>
+        </select>
+      </label>
+      <label class="field">One point per line: x y z (commas or spaces)
+        <textarea id="input" spellcheck="false" placeholder="0 0 0&#10;1, 2, 3&#10;2 1 0.5"></textarea>
+      </label>
+      <button id="plot" class="primary">Plot points</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Mesh</legend>
+      <div class="seg" role="radiogroup" aria-label="Mesh type">
+        <input type="radio" name="mesh" id="m-none" value="none" checked><label for="m-none">None</label>
+        <input type="radio" name="mesh" id="m-tri" value="triangle"><label for="m-tri">Triangle</label>
+        <input type="radio" name="mesh" id="m-sq" value="square"><label for="m-sq">Square</label>
+      </div>
+      <label class="field">Points per row (optional)
+        <input type="number" id="width" min="2" step="1" placeholder="auto-detect">
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Display</legend>
+      <div class="row">
+        <label for="psize">Point size</label>
+        <input type="range" id="psize" min="2" max="24" value="8">
+      </div>
+      <label class="check"><input type="checkbox" id="aspect"> Keep axes proportional</label>
+    </fieldset>
+
+    <div>
+      <p id="status"></p>
+      <p id="warn"></p>
+    </div>
+  </aside>
+
+  <main>
+    <canvas id="gl"></canvas>
+    <canvas id="overlay"></canvas>
+    <button id="reset">Reset view</button>
+    <div class="hint">Drag to rotate. Scroll or pinch to zoom.</div>
+  </main>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+const $ = id => document.getElementById(id);
+const canvas = $('gl'), overlay = $('overlay'), octx = overlay.getContext('2d');
+const gl = canvas.getContext('webgl2', { antialias: true });
+if (!gl) {
+  $('warn').textContent = 'This browser does not support WebGL2.';
+  return;
+}
+
+/* ------------------------------------------------------------------ *
+ * 1. Small matrix library (column-major, like WebGL expects)
+ * ------------------------------------------------------------------ */
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+function perspective(fovy, aspect, near, far) {
+  const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
+  return new Float32Array([
+    f / aspect, 0, 0, 0,
+    0, f, 0, 0,
+    0, 0, (far + near) * nf, -1,
+    0, 0, 2 * far * near * nf, 0
+  ]);
+}
+
+function lookAt(e, c, u) {
+  let zx = e[0] - c[0], zy = e[1] - c[1], zz = e[2] - c[2];
+  let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
+  let xx = u[1] * zz - u[2] * zy, xy = u[2] * zx - u[0] * zz, xz = u[0] * zy - u[1] * zx;
+  l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
+  const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+  return new Float32Array([
+    xx, yx, zx, 0,
+    xy, yy, zy, 0,
+    xz, yz, zz, 0,
+    -(xx * e[0] + xy * e[1] + xz * e[2]),
+    -(yx * e[0] + yy * e[1] + yz * e[2]),
+    -(zx * e[0] + zy * e[1] + zz * e[2]), 1
+  ]);
+}
+
+function mul(a, b) {
+  const o = new Float32Array(16);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+    let s = 0;
+    for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+    o[c * 4 + r] = s;
+  }
+  return o;
+}
+
+/* ------------------------------------------------------------------ *
+ * 2. Shader program: one program draws points, mesh lines and axes
+ * ------------------------------------------------------------------ */
+const VS = `#version 300 es
+layout(location = 0) in vec3 a_pos;
+layout(location = 1) in vec3 a_color;
+uniform mat4 u_mvp;
+uniform float u_pointSize;
+uniform vec4 u_color;
+uniform bool u_useVertexColor;
+out vec4 v_color;
+void main() {
+  gl_Position = u_mvp * vec4(a_pos, 1.0);
+  gl_PointSize = u_pointSize;
+  v_color = u_useVertexColor ? vec4(a_color, 1.0) : u_color;
+}`;
+
+const FS = `#version 300 es
+precision mediump float;
+uniform bool u_round;
+in vec4 v_color;
+out vec4 outColor;
+void main() {
+  if (u_round) {                       // turn square point sprites into discs
+    vec2 c = gl_PointCoord - 0.5;
+    if (dot(c, c) > 0.25) discard;
+  }
+  outColor = v_color;
+}`;
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+
+const loc = {};
+['u_mvp', 'u_pointSize', 'u_color', 'u_useVertexColor', 'u_round']
+  .forEach(n => loc[n] = gl.getUniformLocation(prog, n));
+
+/* ------------------------------------------------------------------ *
+ * 3. GPU buffers and vertex array objects
+ * ------------------------------------------------------------------ */
+const buf = {
+  pos: gl.createBuffer(),  col: gl.createBuffer(),  idx: gl.createBuffer(),
+  axPos: gl.createBuffer(), axCol: gl.createBuffer(), floor: gl.createBuffer()
+};
+
+function makeVAO(posBuf, colBuf, idxBuf) {
+  const v = gl.createVertexArray();
+  gl.bindVertexArray(v);
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+  if (colBuf) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, colBuf);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+  }
+  if (idxBuf) gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+  gl.bindVertexArray(null);
+  return v;
+}
+const vaoPoints = makeVAO(buf.pos, buf.col, null);
+const vaoMesh   = makeVAO(buf.pos, null, buf.idx);
+const vaoAxes   = makeVAO(buf.axPos, buf.axCol, null);
+const vaoFloor  = makeVAO(buf.floor, null, null);
+
+function upload(target, buffer, data) {
+  gl.bindVertexArray(null);
+  gl.bindBuffer(target, buffer);
+  gl.bufferData(target, data, gl.STATIC_DRAW);
+}
+
+/* ------------------------------------------------------------------ *
+ * 4. App state
+ * ------------------------------------------------------------------ */
+const DEFAULT_VIEW = { yaw: -0.8, pitch: 0.45, dist: 4.6 };
+const state = {
+  ...DEFAULT_VIEW,
+  n: 0, raw: null,
+  min: [0, 0, 0], max: [1, 1, 1], half: [1, 1, 1],
+  grid: null, gridNote: '', warns: [], skipped: 0,
+  meshCount: 0, meshInfo: '', meshWarn: '',
+  floorCount: 0, mvp: new Float32Array(16)
+};
+const ui = {
+  input: $('input'), example: $('example'), width: $('width'),
+  psize: $('psize'), aspect: $('aspect'), status: $('status'), warn: $('warn')
+};
+const fmt = v => Number(v.toPrecision(4)).toString();
+const meshKind = () => document.querySelector('input[name="mesh"]:checked').value;
+
+/* ------------------------------------------------------------------ *
+ * 5. Parsing user input
+ * ------------------------------------------------------------------ */
+function parse(text) {
+  const vals = [];
+  let skipped = 0;
+  for (const line of text.split(/\r?\n/)) {
+    let s = line.trim();
+    if (!s || s.startsWith('#') || s.startsWith('//')) continue;
+    s = s.replace(/[()\[\]{}]/g, ' ');
+    const parts = s.split(/[\s,;]+/).filter(Boolean).map(Number);
+    if (parts.length >= 3 && parts.slice(0, 3).every(Number.isFinite)) vals.push(parts[0], parts[1], parts[2]);
+    else skipped++;
+  }
+  return { vals: new Float64Array(vals), n: vals.length / 3, skipped };
+}
+
+/* ------------------------------------------------------------------ *
+ * 6. Grid detection: a "square mesh" needs to know which points are
+ *    neighbours. If x/y form a complete grid, or the user says how many
+ *    points are in each row, we know the connectivity.
+ * ------------------------------------------------------------------ */
+function detectGrid(vals, n, w) {
+  state.warns = [];
+  if (w) {
+    if (w >= 2 && n % w === 0 && n / w >= 2) {
+      const cells = new Int32Array(n);
+      for (let i = 0; i < n; i++) cells[i] = i;
+      return { nx: w, ny: n / w, cells, note: `Grid: ${w} × ${n / w}, read row by row` };
+    }
+    state.warns.push(`Points per row (${w}) must divide the point count (${n}) and leave at least 2 rows. Using auto-detect instead.`);
+  }
+  const key = v => +v.toPrecision(9);
+  const xs = new Set(), ys = new Set();
+  for (let i = 0; i < n; i++) { xs.add(key(vals[3 * i])); ys.add(key(vals[3 * i + 1])); }
+  const ux = [...xs].sort((a, b) => a - b), uy = [...ys].sort((a, b) => a - b);
+  if (ux.length < 2 || uy.length < 2 || ux.length * uy.length !== n) return null;
+  const rx = new Map(ux.map((v, i) => [v, i])), ry = new Map(uy.map((v, i) => [v, i]));
+  const nx = ux.length, ny = uy.length;
+  const cells = new Int32Array(n).fill(-1);
+  for (let i = 0; i < n; i++) {
+    const c = ry.get(key(vals[3 * i + 1])) * nx + rx.get(key(vals[3 * i]));
+    if (cells[c] !== -1) return null;             // two points share one x/y cell
+    cells[c] = i;
+  }
+  return { nx, ny, cells, note: `Grid: ${nx} × ${ny}, detected from x and y` };
+}
+
+/* ------------------------------------------------------------------ *
+ * 7. Delaunay triangulation (Bowyer-Watson) for scattered points.
+ *    Works on the x/y projection, so z is treated as a height.
+ *    O(n²), fine for a few thousand points; use Delaunator for more.
+ * ------------------------------------------------------------------ */
+const MAX_DELAUNAY = 6000;
+
+function delaunay(xy, n) {
+  const X = new Float64Array(n + 3), Y = new Float64Array(n + 3);
+  for (let i = 0; i < n; i++) { X[i] = xy[2 * i]; Y[i] = xy[2 * i + 1]; }
+  const M = 100;                                   // super-triangle around [0,1]²
+  X[n] = -M;  Y[n] = -M;
+  X[n + 1] = M; Y[n + 1] = -M;
+  X[n + 2] = 0.5; Y[n + 2] = M;
+
+  const make = (a, b, c) => {
+    const ax = X[a], ay = Y[a], bx = X[b], by = Y[b], cx = X[c], cy = Y[c];
+    const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+    if (Math.abs(d) < 1e-14) return { a, b, c, x: 0, y: 0, r: -1 };
+    const a2 = ax * ax + ay * ay, b2 = bx * bx + by * by, c2 = cx * cx + cy * cy;
+    const ux = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / d;
+    const uy = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / d;
+    return { a, b, c, x: ux, y: uy, r: (ax - ux) ** 2 + (ay - uy) ** 2 };
+  };
+
+  let tris = [make(n, n + 1, n + 2)];
+  const seen = new Set();
+  for (let p = 0; p < n; p++) {
+    const k = X[p] + ',' + Y[p];
+    if (seen.has(k)) continue;                     // same x/y as an earlier point
+    seen.add(k);
+    const bad = [], keep = [];
+    for (const t of tris) ((X[p] - t.x) ** 2 + (Y[p] - t.y) ** 2 < t.r ? bad : keep).push(t);
+    const edges = new Map();                       // edges used by exactly one bad triangle
+    for (const t of bad) {                         // form the hole's boundary
+      for (const [u, v] of [[t.a, t.b], [t.b, t.c], [t.c, t.a]]) {
+        const ek = u < v ? u * (n + 3) + v : v * (n + 3) + u;
+        const e = edges.get(ek);
+        if (e) e.c++; else edges.set(ek, { u, v, c: 1 });
+      }
+    }
+    for (const e of edges.values()) if (e.c === 1) keep.push(make(e.u, e.v, p));
+    tris = keep;
+  }
+  const out = [];
+  for (const t of tris) if (t.a < n && t.b < n && t.c < n) out.push(t.a, t.b, t.c);
+  return new Uint32Array(out);
+}
+
+/* ------------------------------------------------------------------ *
+ * 8. Build the mesh as a list of line segments (index pairs)
+ * ------------------------------------------------------------------ */
+function edgeCollector(n) {
+  const seen = new Set(), out = [];
+  return {
+    out,
+    add(a, b) {
+      if (a === b) return;
+      const k = a < b ? a * n + b : b * n + a;
+      if (seen.has(k)) return;
+      seen.add(k); out.push(a, b);
+    }
+  };
+}
+
+function buildMesh(kind) {
+  state.meshInfo = ''; state.meshWarn = '';
+  if (kind === 'none') return null;
+  const n = state.n, g = state.grid, E = edgeCollector(n);
+
+  if (g) {                                         // grid connectivity
+    const { nx, ny, cells } = g;
+    const at = (i, j) => cells[j * nx + i];
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const a = at(i, j);
+      if (i + 1 < nx) E.add(a, at(i + 1, j));
+      if (j + 1 < ny) E.add(a, at(i, j + 1));
+      if (kind === 'triangle' && i + 1 < nx && j + 1 < ny) E.add(a, at(i + 1, j + 1)); // one diagonal per cell
+    }
+    return new Uint32Array(E.out);
+  }
+
+  if (kind === 'square') {
+    state.meshWarn = 'Square mesh needs points on a grid. Use a regular x/y grid, or enter how many points are in each row.';
+    return null;
+  }
+  if (n < 3) { state.meshWarn = 'A triangle mesh needs at least 3 points.'; return null; }
+  if (n > MAX_DELAUNAY) {
+    state.meshWarn = `Triangulating scattered points is limited to ${MAX_DELAUNAY} points here. Arrange the points on a grid for larger sets.`;
+    return null;
+  }
+  const rx = state.max[0] - state.min[0], ry = state.max[1] - state.min[1];
+  if (!(rx > 0 && ry > 0)) { state.meshWarn = 'All points share the same x or y, so they cannot be triangulated.'; return null; }
+  const xy = new Float64Array(2 * n);
+  for (let i = 0; i < n; i++) {
+    xy[2 * i] = (state.raw[3 * i] - state.min[0]) / rx;
+    xy[2 * i + 1] = (state.raw[3 * i + 1] - state.min[1]) / ry;
+  }
+  const tri = delaunay(xy, n);
+  if (!tri.length) { state.meshWarn = 'Could not triangulate these points.'; return null; }
+  for (let t = 0; t < tri.length; t += 3) {
+    E.add(tri[t], tri[t + 1]); E.add(tri[t + 1], tri[t + 2]); E.add(tri[t + 2], tri[t]);
+  }
+  state.meshInfo = 'Scattered points: triangulated on x and y (Delaunay).';
+  return new Uint32Array(E.out);
+}
+
+function rebuildMesh() {
+  const idx = buildMesh(meshKind());
+  state.meshCount = idx ? idx.length : 0;
+  if (idx) upload(gl.ELEMENT_ARRAY_BUFFER, buf.idx, idx);
+  updateStatus();
+}
+
+/* ------------------------------------------------------------------ *
+ * 9. Normalise the data into a box and upload vertex data
+ * ------------------------------------------------------------------ */
+const AXIS_COL = [[0.82, 0.27, 0.23], [0.18, 0.60, 0.34], [0.18, 0.44, 0.86]];
+const STOPS = [[0.24, 0.16, 0.60], [0.10, 0.45, 0.75], [0.05, 0.62, 0.55],
+               [0.55, 0.75, 0.20], [0.95, 0.60, 0.10], [0.85, 0.20, 0.20]];
+function colormap(t) {
+  const s = clamp(t, 0, 1) * (STOPS.length - 1);
+  const i = Math.min(Math.floor(s), STOPS.length - 2), f = s - i;
+  const a = STOPS[i], b = STOPS[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+
+function rebuildGeometry() {
+  const { raw, n, min, max } = state;
+  const range = [0, 1, 2].map(i => max[i] - min[i]);
+  const maxR = Math.max(...range) || 1;
+  const keep = ui.aspect.checked;
+  // half-extent of the data box along each axis (the whole box fits in [-1, 1]³)
+  const half = range.map(r => keep ? Math.max(r / maxR, 0.02) : 1);
+  const scale = range.map((r, i) => r > 0 ? (2 * half[i]) / r : 0);
+  state.half = half;
+
+  const pos = new Float32Array(3 * n), col = new Float32Array(3 * n);
+  for (let i = 0; i < n; i++) {
+    for (let a = 0; a < 3; a++) pos[3 * i + a] = (raw[3 * i + a] - (min[a] + max[a]) / 2) * scale[a];
+    const t = range[2] > 0 ? (raw[3 * i + 2] - min[2]) / range[2] : 0.5;
+    const c = colormap(t);
+    col[3 * i] = c[0]; col[3 * i + 1] = c[1]; col[3 * i + 2] = c[2];
+  }
+  upload(gl.ARRAY_BUFFER, buf.pos, pos);
+  upload(gl.ARRAY_BUFFER, buf.col, col);
+
+  // axes run along three edges of the box that meet at the minimum corner
+  const [hx, hy, hz] = half, c0 = [-hx, -hy, -hz];
+  const ends = [[hx, -hy, -hz], [-hx, hy, -hz], [-hx, -hy, hz]];
+  const axPos = [], axCol = [];
+  ends.forEach((e, a) => { axPos.push(...c0, ...e); axCol.push(...AXIS_COL[a], ...AXIS_COL[a]); });
+  upload(gl.ARRAY_BUFFER, buf.axPos, new Float32Array(axPos));
+  upload(gl.ARRAY_BUFFER, buf.axCol, new Float32Array(axCol));
+
+  // floor grid on the z = min plane, for depth cues
+  const D = 10, fl = [];
+  for (let k = 0; k <= D; k++) {
+    const u = -1 + (2 * k) / D;
+    fl.push(u * hx, -hy, -hz, u * hx, hy, -hz);
+    fl.push(-hx, u * hy, -hz, hx, u * hy, -hz);
+  }
+  state.floorCount = fl.length / 3;
+  upload(gl.ARRAY_BUFFER, buf.floor, new Float32Array(fl));
+}
+
+/* ------------------------------------------------------------------ *
+ * 10. Plot: parse -> analyse -> upload
+ * ------------------------------------------------------------------ */
+function plot() {
+  const { vals, n, skipped } = parse(ui.input.value);
+  if (!n) {
+    ui.warn.textContent = 'No points found. Enter one point per line, like: 1.5 2 -0.3';
+    return;
+  }
+  state.raw = vals; state.n = n; state.skipped = skipped;
+  state.min = [Infinity, Infinity, Infinity];
+  state.max = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < n; i++) for (let a = 0; a < 3; a++) {
+    const v = vals[3 * i + a];
+    if (v < state.min[a]) state.min[a] = v;
+    if (v > state.max[a]) state.max[a] = v;
+  }
+  const w = parseInt(ui.width.value, 10) || 0;
+  state.grid = detectGrid(vals, n, w);
+  state.gridNote = state.grid ? state.grid.note : '';
+  rebuildGeometry();
+  rebuildMesh();
+  requestDraw();
+}
+
+function updateStatus() {
+  const s = state, L = [];
+  L.push(`${s.n} point${s.n === 1 ? '' : 's'}`);
+  ['x', 'y', 'z'].forEach((name, a) => L.push(`${name}: ${fmt(s.min[a])} to ${fmt(s.max[a])}`));
+  const info = [L.join('\n')];
+  if (s.gridNote) info.push(s.gridNote);
+  if (s.meshInfo) info.push(s.meshInfo);
+  ui.status.textContent = info.join('\n\n');
+  const warns = [...s.warns];
+  if (s.skipped) warns.push(`${s.skipped} line${s.skipped === 1 ? '' : 's'} skipped: could not read three numbers.`);
+  if (s.meshWarn) warns.push(s.meshWarn);
+  ui.warn.textContent = warns.join('\n');
+}
+
+/* ------------------------------------------------------------------ *
+ * 11. Rendering
+ * ------------------------------------------------------------------ */
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  const r = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = overlay.width = w;
+    canvas.height = overlay.height = h;
+  }
+  return dpr;
+}
+
+function draw() {
+  const dpr = resize();
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.clearColor(0.957, 0.965, 0.973, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+  // orbit camera, z is up: spherical coordinates around the origin
+  const { yaw, pitch, dist } = state;
+  const eye = [
+    dist * Math.cos(pitch) * Math.cos(yaw),
+    dist * Math.cos(pitch) * Math.sin(yaw),
+    dist * Math.sin(pitch)
+  ];
+  const proj = perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 50);
+  const view = lookAt(eye, [0, 0, 0], [0, 0, 1]);
+  state.mvp = mul(proj, view);
+
+  gl.useProgram(prog);
+  gl.uniformMatrix4fv(loc.u_mvp, false, state.mvp);
+
+  if (state.n) {
+    gl.uniform1i(loc.u_round, 0);
+
+    gl.depthMask(false);                            // floor never hides anything
+    gl.bindVertexArray(vaoFloor);
+    gl.uniform1i(loc.u_useVertexColor, 0);
+    gl.uniform4f(loc.u_color, 0.09, 0.13, 0.18, 0.13);
+    gl.drawArrays(gl.LINES, 0, state.floorCount);
+    gl.depthMask(true);
+
+    gl.bindVertexArray(vaoAxes);
+    gl.uniform1i(loc.u_useVertexColor, 1);
+    gl.drawArrays(gl.LINES, 0, 6);
+
+    if (state.meshCount) {
+      gl.bindVertexArray(vaoMesh);
+      gl.uniform1i(loc.u_useVertexColor, 0);
+      gl.uniform4f(loc.u_color, 0.10, 0.16, 0.26, 0.42);
+      gl.drawElements(gl.LINES, state.meshCount, gl.UNSIGNED_INT, 0);
+    }
+
+    gl.bindVertexArray(vaoPoints);
+    gl.uniform1i(loc.u_useVertexColor, 1);
+    gl.uniform1i(loc.u_round, 1);
+    gl.uniform1f(loc.u_pointSize, +ui.psize.value * dpr);
+    gl.drawArrays(gl.POINTS, 0, state.n);
+  }
+  gl.bindVertexArray(null);
+  drawLabels(dpr);
+}
+
+// WebGL has no text, so labels are drawn on a 2D canvas layered on top.
+function project(p) {
+  const m = state.mvp;
+  const x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12];
+  const y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13];
+  const w = m[3] * p[0] + m[7] * p[1] + m[11] * p[2] + m[15];
+  if (w <= 0) return null;
+  return [(x / w * 0.5 + 0.5) * overlay.width, (1 - (y / w * 0.5 + 0.5)) * overlay.height];
+}
+
+function drawLabels(dpr) {
+  octx.clearRect(0, 0, overlay.width, overlay.height);
+  if (!state.n) return;
+  const [hx, hy, hz] = state.half, css = ['#d1453b', '#2e9a56', '#2f6fdb'];
+  octx.font = `600 ${13 * dpr}px ui-monospace, Menlo, Consolas, monospace`;
+  octx.textBaseline = 'middle';
+  for (let a = 0; a < 3; a++) {
+    const e = [-hx, -hy, -hz]; e[a] = state.half[a];
+    const p = project(e);
+    if (!p) continue;
+    octx.fillStyle = css[a];
+    octx.fillText(`${'xyz'[a]} ${fmt(state.max[a])}`, p[0] + 8 * dpr, p[1]);
+  }
+  const p0 = project([-hx, -hy, -hz]);
+  if (p0) {
+    octx.font = `${12 * dpr}px ui-monospace, Menlo, Consolas, monospace`;
+    octx.fillStyle = '#5b6b7b';
+    octx.fillText(`min ${fmt(state.min[0])}, ${fmt(state.min[1])}, ${fmt(state.min[2])}`, p0[0] + 8 * dpr, p0[1] + 16 * dpr);
+  }
+}
+
+let queued = false;
+function requestDraw() {
+  if (queued) return;
+  queued = true;
+  requestAnimationFrame(() => { queued = false; draw(); });
+}
+
+/* ------------------------------------------------------------------ *
+ * 12. Interaction: drag to orbit, wheel / pinch to zoom
+ * ------------------------------------------------------------------ */
+const pointers = new Map();
+let lastPinch = 0;
+const pinchDist = () => {
+  const [a, b] = [...pointers.values()];
+  return Math.hypot(a.x - b.x, a.y - b.y);
+};
+
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2) lastPinch = pinchDist();
+  canvas.style.cursor = 'grabbing';
+});
+canvas.addEventListener('pointermove', e => {
+  const p = pointers.get(e.pointerId);
+  if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  if (pointers.size === 1) {
+    state.yaw -= dx * 0.008;
+    state.pitch = clamp(state.pitch + dy * 0.008, -1.5, 1.5);
+  } else if (pointers.size === 2) {
+    const d = pinchDist();
+    if (lastPinch > 0 && d > 0) state.dist = clamp(state.dist * lastPinch / d, 1.5, 14);
+    lastPinch = d;
+  }
+  requestDraw();
+});
+const endPointer = e => { pointers.delete(e.pointerId); lastPinch = 0; canvas.style.cursor = 'grab'; };
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  state.dist = clamp(state.dist * Math.exp(e.deltaY * 0.0012), 1.5, 14);
+  requestDraw();
+}, { passive: false });
+
+new ResizeObserver(requestDraw).observe(canvas);
+
+/* ------------------------------------------------------------------ *
+ * 13. Controls and example data
+ * ------------------------------------------------------------------ */
+const EXAMPLES = {
+  surface() {
+    const N = 21, rows = [];
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = -4 + 8 * i / (N - 1), y = -4 + 8 * j / (N - 1), r = Math.hypot(x, y);
+      rows.push([x, y, 2 * Math.sin(r * 1.5) * Math.exp(-r * 0.25)]);
+    }
+    return { rows, width: '' };
+  },
+  scatter() {
+    const rows = [];
+    for (let i = 0; i < 250; i++) {
+      const x = -3 + 6 * Math.random(), y = -3 + 6 * Math.random();
+      rows.push([x, y, Math.sin(x) * Math.cos(y)]);
+    }
+    return { rows, width: '' };
+  },
+  sphere() {
+    const cols = 25, latRows = 13, rows = [];
+    for (let j = 0; j < latRows; j++) {
+      const lat = (-75 + 150 * j / (latRows - 1)) * Math.PI / 180;
+      for (let i = 0; i < cols; i++) {
+        const lon = 2 * Math.PI * i / (cols - 1);
+        rows.push([Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)]);
+      }
+    }
+    return { rows, width: String(cols) };
+  }
+};
+
+function loadExample(name) {
+  const { rows, width } = EXAMPLES[name]();
+  ui.input.value = rows.map(r => r.map(v => v.toFixed(3)).join(' ')).join('\n');
+  ui.width.value = width;
+  if (name !== 'scatter' && meshKind() === 'none') $('m-sq').checked = true;
+  if (name === 'scatter') $('m-tri').checked = true;
+  Object.assign(state, DEFAULT_VIEW);
+  plot();
+}
+
+$('plot').addEventListener('click', plot);
+ui.input.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') plot(); });
+ui.width.addEventListener('change', plot);
+ui.example.addEventListener('change', () => { if (ui.example.value) loadExample(ui.example.value); });
+document.querySelectorAll('input[name="mesh"]').forEach(r => r.addEventListener('change', () => {
+  if (state.n) { rebuildMesh(); requestDraw(); }
+}));
+ui.psize.addEventListener('input', requestDraw);
+ui.aspect.addEventListener('change', () => { if (state.n) { rebuildGeometry(); requestDraw(); } });
+$('reset').addEventListener('click', () => { Object.assign(state, DEFAULT_VIEW); requestDraw(); });
+
+// start with the grid surface and a square mesh
+$('m-sq').checked = true;
+loadExample('surface');
+})();
+</script>
+</body>
+</html>
