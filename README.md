@@ -17,8 +17,15 @@ the `xobjdetect` namespace.
 
 ## Run
 
+The project will run here: http://127.0.0.1:3000/
+
 ```powershell
-python .\face_alignment.py
+python app.py
+```
+
+Then in another terminal: 
+```powershell
+node server.js
 ```
 
 To use another camera, pass its device index:
