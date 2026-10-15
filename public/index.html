@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <bettercampus-components style="opacity: 1; transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);"></bettercampus-components>
+    <title>TI Authenticator</title>
+
+    <!-- JQuery -->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+
+    <!-- Bootstrap 4.4.1 -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+
+    <!-- Fontawesome 5.11.2 -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.11.2/css/all.css">
+
+
+     <style>
+        .sidebar{
+            box-shadow: 6px 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .scanner {
+            width: 100%;
+            max-width: 720px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .description {
+            color: #aab7cc;
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: #050a12;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #cameraFeed {
+            display: none;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #placeholder {
+            padding: 24px;
+            color: #94a3b8;
+            line-height: 1.7;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 10px;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #beginButton {
+            background: #22c55e;
+            color: #052e16;
+        }
+
+        #stopButton {
+            background: #334155;
+            color: white;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin-top: 18px;
+            color: #cbd5e1;
+            min-height: 24px;
+        }
+
+        .privacy {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+     </style>
+</head>
+<body>
+
+    <div id="header-include"></div>
+
+    <div style="background-color: #FFFF;">
+    <div class="d-flex">
+        <div class="sidebar d-flex flex-column flex-shrink-0 p-3 bg-light" style="width: 280px; min-height: 100vh; background-color: #bab8b8;">
+        <a href="/" class="d-flex align-items-center mb-3 mb-md-0 link-dark text-decoration-none">
+            <img src="https://bullfincher.io/logos/us/TXN.png" alt="TI Logo" class="mr-2" style="max-width: 60px; height: auto;">
+            <span class="fs-2">Texas Instruments</span>
+        </a>
+
+        <hr>
+        <ul class="nav nav-pills flex-column mb-auto">
+            <li class="nav-item">
+            <a href="#" class="nav-link active" aria-current="page">
+                <i class="fa fa-camera mr-2" aria-hidden="true">‌</i> Start Scan
+            </a>
+            </li>
+            <li>
+            <a href="#" class="nav-link link-dark">
+                <i class="fa fa-user-plus mr-2" aria-hidden="true">‌</i> Adjust Users
+            </a>
+            </li>
+            <li>
+            <a href="#" class="nav-link link-dark">
+                <i class="fas fa-table mr-2"></i> Orders
+            </a>
+            </li>
+            <li>
+            <a href="#" class="nav-link link-dark">
+                <i class="fas fa-th mr-2"></i> Products
+            </a>
+            </li>
+            <li>
+            <a href="#" class="nav-link link-dark">
+                <i class="fas fa-users mr-2"></i> Customers
+            </a>
+            </li>
+        </ul>
+        <hr>
+        <div class="dropdown">
+            <a href="#" class="d-flex align-items-center link-dark text-decoration-none dropdown-toggle"
+            id="dropdownUser2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <img src="/" alt="User" width="32" height="32" class="rounded-circle mr-2">
+            <strong>user</strong>
+            </a>
+            <div class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser2">
+            <a class="dropdown-item" href="#">New project...</a>
+            <a class="dropdown-item" href="#">Settings</a>
+            <a class="dropdown-item" href="#">Profile</a>
+            <div class="dropdown-divider"></div>
+            <a class="dropdown-item" href="#">Sign out</a>
+            </div>
+        </div>
+        </div>
+    </div>
+    </div>
+
+    <div id="footer-include"></div>
+
+    <main class="scanner">
+        <h1>Face Alignment Scanner</h1>
+
+        <p class="description">
+            Position your face inside the target box.
+            Follow the on-screen instructions to align your face.
+        </p>
+
+        <div class="video-container">
+            <img id="cameraFeed" alt="Live face alignment camera feed">
+
+            <div id="placeholder">
+                <p>Your camera feed will appear here.</p>
+                <p>Click <strong>Begin Scan</strong> to start.</p>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button id="beginButton" type="button">
+                Begin Scan
+            </button>
+
+            <button id="stopButton" type="button" disabled>
+                Stop Scan
+            </button>
+        </div>
+
+        <p id="status" role="status" aria-live="polite">
+            Scanner ready.
+        </p>
+
+        <p class="privacy">
+            Camera processing runs through the local Python application.
+        </p>
+    </main>
+
+    <script>
+        const cameraFeed = document.getElementById("cameraFeed");
+        const placeholder = document.getElementById("placeholder");
+        const beginButton = document.getElementById("beginButton");
+        const stopButton = document.getElementById("stopButton");
+        const status = document.getElementById("status");
+
+        let scanning = false;
+
+        beginButton.addEventListener("click", async () => {
+            if (scanning) return;
+
+            beginButton.disabled = true;
+            status.textContent = "Checking camera...";
+
+            try {
+                // Check the Flask camera backend through Node.js.
+                const response = await fetch("/health", {
+                    cache: "no-store"
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.ok) {
+                    throw new Error(
+                        result.error || "Camera check failed."
+                    );
+                }
+
+                // Camera is ready; show the video feed.
+                scanning = true;
+
+                placeholder.style.display = "none";
+                cameraFeed.style.display = "block";
+
+                stopButton.disabled = false;
+                status.textContent = "Starting face scan...";
+
+                cameraFeed.src = "/video_feed?t=" + Date.now();
+
+            } catch (error) {
+                status.textContent = "Scan error: " + error.message;
+
+                beginButton.disabled = false;
+                scanning = false;
+            }
+        });
+
+        cameraFeed.addEventListener("load", () => {
+            if (scanning) {
+                status.textContent =
+                    "Scan running. Follow the instructions shown on the video.";
+            }
+        });
+
+        cameraFeed.addEventListener("error", () => {
+            if (scanning) {
+                status.textContent =
+                    "Unable to display the camera feed. Check the camera and server.";
+            }
+        });
+
+        stopButton.addEventListener("click", stopScan);
+
+        function stopScan() {
+            scanning = false;
+
+            // Clearing the image source closes the streaming request.
+            cameraFeed.src = "";
+            cameraFeed.style.display = "none";
+            placeholder.style.display = "block";
+
+            beginButton.disabled = false;
+            stopButton.disabled = true;
+
+            status.textContent = "Scan stopped.";
+        }
+
+        window.addEventListener("beforeunload", () => {
+            cameraFeed.src = "";
+        });
+    </script>
+</body>
+</html>
