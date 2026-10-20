@@ -19,34 +19,184 @@
 
 
      <style>
-        .sidebar{
-            box-shadow: 6px 0 10px rgba(0, 0, 0, 0.1);
+        
+        * {
+            box-sizing: border-box;
         }
-        .scanner {
+
+        html,
+        body {
+            margin: 0;
+            min-height: 100%;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #202020;
+        }
+
+        body {
+            background: #f4f4f4;
+        }
+
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Left sidebar */
+        .sidebar {
+            flex: 0 0 406px;
+            width: 406px;
+            min-height: 100vh;
+            padding: 40px 46px;
+            background: #fff;
+            box-shadow: 5px 0 12px rgba(0, 0, 0, 0.06);
+            z-index: 1;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+            color: #202020;
+            white-space: nowrap;
+        }
+
+        .brand img {
+            width: 70px;
+            height: auto;
+        }
+
+        .brand span {
+            font-size: 29px;
+            font-weight: 600;
+            letter-spacing: -0.7px;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 21px;
+            margin-top: 126px;
+        }
+
+        .action-button {
             width: 100%;
-            max-width: 720px;
-            text-align: center;
+            min-height: 84px;
+            padding: 18px 23px;
+            border: 1px solid #111;
+            border-radius: 8px;
+            background: #d00000;
+            color: white;
+            font-size: 23px;
+            font-weight: 700;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.2s ease;
         }
 
-        h1 {
-            margin-bottom: 10px;
+        .action-button:hover {
+            background: #b90000;
+        }
+
+        .action-button:focus-visible {
+            outline: 3px solid #777;
+            outline-offset: 3px;
+        }
+
+        .action-button:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        .settings-button {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-button span:last-child {
+            font-size: 22px;
+        }
+
+        .settings-options {
+            display: none;
+            padding: 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+
+        .settings-options.open {
+            display: block;
+        }
+
+        .settings-options label {
+            display: block;
+            margin: 8px 0;
+        }
+
+        .verification {
+            margin-top: 88px;
+        }
+
+        .verification h2 {
+            margin: 0 0 14px;
+            font-size: 30px;
+            font-weight: 600;
+        }
+
+        #verificationResult {
+            color: #555;
+            font-size: 16px;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            padding: 62px 45px 50px;
+        }
+
+        .intro h1 {
+            margin: 0 0 17px;
             font-size: 32px;
+            font-weight: 600;
         }
 
-        .description {
-            color: #aab7cc;
-            margin-bottom: 28px;
+        .intro p {
+            margin: 0;
+            color: #5b5b5b;
+            font-size: 17px;
             line-height: 1.6;
+        }
+
+        .scan-card {
+            width: 100%;
+            max-width: 900px;
+            height: 737px;
+            margin: 73px auto 0;
+            padding: 25px 26px;
+            overflow: hidden;
+            border-radius: 9px;
+            background: #fff;
+        }
+
+        .scan-card h2 {
+            margin: 0;
+            color: #555;
+            font-size: 17px;
+            font-weight: 500;
         }
 
         .video-container {
             position: relative;
             width: 100%;
-            aspect-ratio: 4 / 3;
-            background: #050a12;
-            border: 1px solid #334155;
-            border-radius: 16px;
+            height: calc(100% - 35px);
+            margin-top: 15px;
             overflow: hidden;
+            background: #fff;
+            border: 0;
+            border-radius: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -57,155 +207,301 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
+            background: #fff;
         }
 
         #placeholder {
-            padding: 24px;
-            color: #94a3b8;
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            color: #555;
+            text-align: center;
+        }
+
+        .placeholder-message {
+            max-width: 360px;
             line-height: 1.7;
         }
 
-        .buttons {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            margin-top: 24px;
+        .axis-guide {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
         }
 
-        button {
+        .scan-controls {
+            display: flex;
+            justify-content: flex-start;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .scan-controls button {
+            padding: 10px 18px;
             border: 0;
-            border-radius: 10px;
-            padding: 14px 24px;
-            font-size: 16px;
-            font-weight: bold;
+            border-radius: 6px;
+            background: #d00000;
+            color: #fff;
+            font-weight: 600;
             cursor: pointer;
         }
 
-        #beginButton {
-            background: #22c55e;
-            color: #052e16;
-        }
-
         #stopButton {
-            background: #334155;
-            color: white;
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+            background: #444;
         }
 
         #status {
-            margin-top: 18px;
-            color: #cbd5e1;
             min-height: 24px;
+            margin-top: 12px;
+            color: #555;
+            font-size: 14px;
         }
 
         .privacy {
-            margin-top: 20px;
+            color: #666;
             font-size: 13px;
-            color: #94a3b8;
+        }
+
+        /* Smaller screens */
+        @media (max-width: 1100px) {
+            .sidebar {
+                flex-basis: 320px;
+                width: 320px;
+                padding: 30px 25px;
+            }
+
+            .brand img {
+                width: 55px;
+            }
+
+            .brand span {
+                font-size: 22px;
+            }
+
+            .action-button {
+                min-height: 68px;
+                font-size: 18px;
+            }
+
+            .main-content {
+                padding: 40px 28px;
+            }
+
+            .scan-card {
+                height: min(68vw, 700px);
+                min-height: 450px;
+                margin-top: 45px;
+            }
+
+            .verification h2 {
+                font-size: 24px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .app-layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                min-height: auto;
+                flex-basis: auto;
+                padding: 22px;
+            }
+
+            .brand span {
+                font-size: 24px;
+            }
+
+            .sidebar-actions {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+                margin-top: 25px;
+            }
+
+            .action-button {
+                min-height: 60px;
+                padding: 12px;
+                font-size: 15px;
+            }
+
+            .verification {
+                margin-top: 25px;
+            }
+
+            .main-content {
+                padding: 30px 18px;
+            }
+
+            .intro h1 {
+                font-size: 28px;
+            }
+
+            .intro p {
+                font-size: 15px;
+            }
+
+            .scan-card {
+                height: 65vh;
+                min-height: 360px;
+                margin-top: 30px;
+                padding: 18px;
+            }
         }
 
      </style>
 </head>
 <body>
 
-    <div id="header-include"></div>
+    
+<div class="app-layout">
 
-    <div style="background-color: #FFFF;">
-    <div class="d-flex">
-        <div class="sidebar d-flex flex-column flex-shrink-0 p-3 bg-light" style="width: 280px; min-height: 100vh; background-color: #bab8b8;">
-        <a href="/" class="d-flex align-items-center mb-3 mb-md-0 link-dark text-decoration-none">
-            <img src="https://bullfincher.io/logos/us/TXN.png" alt="TI Logo" class="mr-2" style="max-width: 60px; height: auto;">
-            <span class="fs-2">Texas Instruments</span>
+    <aside class="sidebar">
+        <a href="/" class="brand">
+            <img
+                src="https://bullfincher.io/logos/us/TXN.png"
+                alt="Texas Instruments logo"
+            >
+            <span>Texas Instruments</span>
         </a>
 
-        <hr>
-        <ul class="nav nav-pills flex-column mb-auto">
-            <li class="nav-item">
-            <a href="#" class="nav-link active" aria-current="page">
-                <i class="fa fa-camera mr-2" aria-hidden="true">‌</i> Start Scan
-            </a>
-            </li>
-            <li>
-            <a href="#" class="nav-link link-dark">
-                <i class="fa fa-user-plus mr-2" aria-hidden="true">‌</i> Adjust Users
-            </a>
-            </li>
-            <li>
-            <a href="#" class="nav-link link-dark">
-                <i class="fas fa-table mr-2"></i> Orders
-            </a>
-            </li>
-            <li>
-            <a href="#" class="nav-link link-dark">
-                <i class="fas fa-th mr-2"></i> Products
-            </a>
-            </li>
-            <li>
-            <a href="#" class="nav-link link-dark">
-                <i class="fas fa-users mr-2"></i> Customers
-            </a>
-            </li>
-        </ul>
-        <hr>
-        <div class="dropdown">
-            <a href="#" class="d-flex align-items-center link-dark text-decoration-none dropdown-toggle"
-            id="dropdownUser2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <img src="/" alt="User" width="32" height="32" class="rounded-circle mr-2">
-            <strong>user</strong>
-            </a>
-            <div class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser2">
-            <a class="dropdown-item" href="#">New project...</a>
-            <a class="dropdown-item" href="#">Settings</a>
-            <a class="dropdown-item" href="#">Profile</a>
-            <div class="dropdown-divider"></div>
-            <a class="dropdown-item" href="#">Sign out</a>
-            </div>
-        </div>
-        </div>
-    </div>
-    </div>
+        <div class="sidebar-actions">
+            <button id="beginButton" class="action-button" type="button">
+                Start Scan
+            </button>
 
-    <div id="footer-include"></div>
+            <button id="adjustUsersButton" class="action-button" type="button">
+                Adjust Verified Users
+            </button>
 
-    <main class="scanner">
-        <h1>Face Alignment Scanner</h1>
+            <button id="testScannerButton" class="action-button" type="button">
+                Test Facial Scanner
+            </button>
 
-        <p class="description">
-            Position your face inside the target box.
-            Follow the on-screen instructions to align your face.
-        </p>
+            <button
+                id="settingsButton"
+                class="action-button settings-button"
+                type="button"
+                aria-expanded="false"
+            >
+                <span>Viewport Settings</span>
+                <span aria-hidden="true">⌄</span>
+            </button>
 
-        <div class="video-container">
-            <img id="cameraFeed" alt="Live face alignment camera feed">
-
-            <div id="placeholder">
-                <p>Your camera feed will appear here.</p>
-                <p>Click <strong>Begin Scan</strong> to start.</p>
+            <div id="settingsOptions" class="settings-options">
+                <label>
+                    <input id="showAxes" type="checkbox" checked>
+                    Show coordinate axes
+                </label>
+                <label>
+                    <input id="showGuides" type="checkbox" checked>
+                    Show alignment guides
+                </label>
             </div>
         </div>
 
-        <div class="buttons">
-            <button id="beginButton" type="button">
-                Begin Scan
-            </button>
+        <section class="verification">
+            <h2>Verification Status:</h2>
+            <p id="verificationResult" aria-live="polite"></p>
+        </section>
+    </aside>
 
-            <button id="stopButton" type="button" disabled>
-                Stop Scan
-            </button>
-        </div>
+    <main class="main-content">
+        <header class="intro">
+            <h1>Hello!</h1>
+            <p>
+                Click Start Scan to begin scanning face. Once completed,
+                a 3D Point Cloud will be created for verification purposes.
+            </p>
+        </header>
 
-        <p id="status" role="status" aria-live="polite">
-            Scanner ready.
-        </p>
+        <section class="scan-card">
+            <h2>Face Scan</h2>
+                <div class="scan-controls">
+                <button id="stopButton" type="button" disabled>
+                    Stop Scan
+                </button>
+            </div>
 
-        <p class="privacy">
-            Camera processing runs through the local Python application.
-        </p>
+                <p id="status" role="status" aria-live="polite">
+                    Scanner ready.
+                </p>
+
+                <p class="privacy">
+                    Camera processing runs through the local Python application.
+                </p>
+            <div class="video-container">
+                <img
+                    id="cameraFeed"
+                    alt="Live face alignment camera feed"
+                >
+
+                <div id="placeholder">
+                    <svg
+                        id="axisGuide"
+                        class="axis-guide"
+                        viewBox="0 0 800 650"
+                        preserveAspectRatio="none"
+                        aria-hidden="true"
+                    >
+                        <defs>
+                            <marker
+                                id="arrow"
+                                markerWidth="7"
+                                markerHeight="7"
+                                refX="5"
+                                refY="3"
+                                orient="auto"
+                            >
+                                <path
+                                    d="M0,0 L6,3 L0,6"
+                                    fill="none"
+                                    stroke="#111"
+                                    stroke-width="1"
+                                />
+                            </marker>
+                        </defs>
+
+                        <g
+                            id="coordinateAxes"
+                            fill="none"
+                            stroke="#111"
+                            stroke-width="1"
+                        >
+                            <path
+                                d="M48 440 L48 20"
+                                marker-end="url(#arrow)"
+                            />
+                            <path
+                                d="M55 440 L300 365"
+                                marker-end="url(#arrow)"
+                            />
+                            <path
+                                d="M52 447 L240 580"
+                                marker-end="url(#arrow)"
+                            />
+                        </g>
+                    </svg>
+
+                    <div class="placeholder-message">
+                        <p id="placeholderText" hidden>
+                            Your camera feed will appear here.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
+
+</div>
+
 
     <script>
         const cameraFeed = document.getElementById("cameraFeed");
@@ -213,6 +509,12 @@
         const beginButton = document.getElementById("beginButton");
         const stopButton = document.getElementById("stopButton");
         const status = document.getElementById("status");
+        const settingsButton = document.getElementById("settingsButton");
+        const settingsOptions = document.getElementById("settingsOptions");
+        const showAxes = document.getElementById("showAxes");
+        const showGuides = document.getElementById("showGuides");
+        const coordinateAxes = document.getElementById("coordinateAxes");
+        const verificationResult = document.getElementById("verificationResult");
 
         let scanning = false;
 
@@ -288,6 +590,46 @@
         window.addEventListener("beforeunload", () => {
             cameraFeed.src = "";
         });
+
+        settingsButton.addEventListener("click", () => {
+            const isOpen = settingsOptions.classList.toggle("open");
+            settingsButton.setAttribute("aria-expanded", String(isOpen));
+        });
+
+        showAxes.addEventListener("change", () => {
+            coordinateAxes.style.display = showAxes.checked ? "" : "none";
+        });
+
+        showGuides.addEventListener("change", () => {
+            document.querySelector(".placeholder-message").style.display =
+                showGuides.checked ? "" : "none";
+        });
+
+        document.getElementById("adjustUsersButton").addEventListener("click", () => {
+            verificationResult.textContent =
+                "Verified-user management is not connected yet.";
+        });
+
+        document.getElementById("testScannerButton").addEventListener("click", async () => {
+            document.getElementById("status").textContent =
+                "Testing camera connection...";
+
+            try {
+                const response = await fetch("/health", { cache: "no-store" });
+                const result = await response.json();
+
+                if (!response.ok || !result.ok) {
+                    throw new Error(result.error || "Camera check failed.");
+                }
+
+                document.getElementById("status").textContent =
+                    "Camera backend is responding.";
+            } catch (error) {
+                document.getElementById("status").textContent =
+                    "Scanner test failed: " + error.message;
+            }
+        });
+
     </script>
 </body>
 </html>
