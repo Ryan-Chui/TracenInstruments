@@ -43,8 +43,8 @@
 
         /* Left sidebar */
         .sidebar {
-            flex: 0 0 406px;
-            width: 406px;
+            flex: 0 0 450px;
+            width: 450px;
             min-height: 100vh;
             padding: 40px 46px;
             background: #fff;
@@ -117,17 +117,102 @@
         .settings-button span:last-child {
             font-size: 22px;
         }
-
-        .settings-options {
-            display: none;
-            padding: 14px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            background: #fafafa;
+        
+        /* Expand/collapse settings */
+        .settings-options[hidden] {
+            display: none !important;
         }
 
-        .settings-options.open {
+        .settings-options:not([hidden]) {
             display: block;
+        }
+
+        /* Point Size layout */
+        .point-size-section {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px 0;
+        }
+
+        .point-size-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .point-size-header label {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        #pointSizeValue {
+            min-width: 2.5em;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .point-size-slider {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        .point-size-slider .form-range {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+        }
+
+        .slider-markers {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 6px;
+            color: #777;
+            font-size: 0.8rem;
+        }
+
+        .point-slider {
+            width: 100%;
+            min-width: 0;
+            padding: 0 8px;
+            box-sizing: border-box;
+        }
+
+        .point-slider .form-range {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+        }
+
+        .slider-labels {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            width: 100%;
+            margin-top: 6px;
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+
+        .slider-labels span:first-child {
+            text-align: left;
+        }
+
+        .slider-labels span:nth-child(2) {
+            text-align: center;
+        }
+
+        .slider-labels span:last-child {
+            text-align: right;
+        }
+
+        #pointSizeValue {
+            font-weight: 600;
+            margin-left: 4px;
         }
 
         .settings-options label {
@@ -390,20 +475,72 @@
                 class="action-button settings-button"
                 type="button"
                 aria-expanded="false"
+                aria-controls="settingsOptions"
             >
                 <span>Viewport Settings</span>
-                <span aria-hidden="true">⌄</span>
+                <span id="settingsArrow" aria-hidden="true">⌄</span>
             </button>
 
-            <div id="settingsOptions" class="settings-options">
-                <label>
-                    <input id="showAxes" type="checkbox" checked>
-                    Show coordinate axes
-                </label>
-                <label>
-                    <input id="showGuides" type="checkbox" checked>
-                    Show alignment guides
-                </label>
+            <div id="settingsOptions" class="settings-options" hidden>
+                <h6 class="centered">Color Options: </h6>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="colorRadio" id="colorLight" value="light">
+                    <label class="form-check-label" for="inlineRadio1">Light</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="colorRadio" id="colorDark" value="dark">
+                    <label class="form-check-label" for="inlineRadio2">Dark</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="colorRadio" id="colorGray" value="gray">
+                    <label class="form-check-label" for="inlineRadio3">Gray</label>
+                </div>
+                <div class="point-size-section">
+                    <div class="point-size-header">
+                        <label for="customRange">Point Size</label>
+                        <span id="pointSizeValue" aria-live="polite">15</span>
+                    </div>
+
+                    <div class="point-size-slider">
+                        <input
+                            type="range"
+                            class="form-range"
+                            min="0"
+                            max="30"
+                            step="1"
+                            value="15"
+                            id="customRange"
+                        >
+
+                        <div class="slider-markers">
+                            <span>0</span>
+                            <span>15</span>
+                            <span>30</span>
+                        </div>
+                    </div>
+                </div>
+                <h6 class="centered">Mesh Shape: </h6>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="meshRadio" id="meshNone" value="none">
+                    <label class="form-check-label" for="inlineRadio1">None</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="meshRadio" id="meshTriangle" value="triangle">
+                    <label class="form-check-label" for="inlineRadio2">Triangle</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="meshRadio" id="meshSquare" value="square">
+                    <label class="form-check-label" for="inlineRadio3">Square</label>
+                </div>
+                <h6 class="centered">Toggle Zoom: </h6>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="zoomRadio" id="zoomOn" value="on">
+                    <label class="form-check-label" for="inlineRadio1">On</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="zoomRadio" id="zoomOff" value="off">
+                    <label class="form-check-label" for="inlineRadio2">Off</label>
+                </div>
             </div>
         </div>
 
@@ -511,10 +648,9 @@
         const status = document.getElementById("status");
         const settingsButton = document.getElementById("settingsButton");
         const settingsOptions = document.getElementById("settingsOptions");
-        const showAxes = document.getElementById("showAxes");
-        const showGuides = document.getElementById("showGuides");
-        const coordinateAxes = document.getElementById("coordinateAxes");
         const verificationResult = document.getElementById("verificationResult");
+        const pointSizeSlider = document.getElementById("customRange");
+        const pointSizeValue = document.getElementById("pointSizeValue");
 
         let scanning = false;
 
@@ -591,20 +727,6 @@
             cameraFeed.src = "";
         });
 
-        settingsButton.addEventListener("click", () => {
-            const isOpen = settingsOptions.classList.toggle("open");
-            settingsButton.setAttribute("aria-expanded", String(isOpen));
-        });
-
-        showAxes.addEventListener("change", () => {
-            coordinateAxes.style.display = showAxes.checked ? "" : "none";
-        });
-
-        showGuides.addEventListener("change", () => {
-            document.querySelector(".placeholder-message").style.display =
-                showGuides.checked ? "" : "none";
-        });
-
         document.getElementById("adjustUsersButton").addEventListener("click", () => {
             verificationResult.textContent =
                 "Verified-user management is not connected yet.";
@@ -629,6 +751,33 @@
                     "Scanner test failed: " + error.message;
             }
         });
+  
+        
+        /* Viewport Settings expand/collapse */
+        const settingsArrow = document.getElementById("settingsArrow");
+
+        if (settingsButton && settingsOptions) {
+            settingsButton.addEventListener("click", () => {
+                const opening = settingsOptions.hidden;
+
+                settingsOptions.hidden = !opening;
+                settingsButton.setAttribute("aria-expanded", String(opening));
+
+                if (settingsArrow) {
+                    settingsArrow.textContent = opening ? "⌃" : "⌄";
+                }
+            });
+        }
+
+        /* Point Size live value */
+        if (pointSizeSlider && pointSizeValue) {
+            const updatePointSize = () => {
+                pointSizeValue.textContent = pointSizeSlider.value;
+            };
+
+            pointSizeSlider.addEventListener("input", updatePointSize);
+            updatePointSize();
+        }
 
     </script>
 </body>

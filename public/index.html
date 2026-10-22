@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <bettercampus-components style="opacity: 1; transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);"></bettercampus-components>
+    <title>TI Authenticator</title>
+
+    <!-- JQuery -->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+
+    <!-- Bootstrap 4.4.1 -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+
+    <!-- Fontawesome 5.11.2 -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.11.2/css/all.css">
+
+
+     <style>
+        
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            min-height: 100%;
+            zoom: 80%;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #202020;
+        }
+
+        body {
+            background: #f4f4f4;
+        }
+
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Left sidebar */
+        .sidebar {
+            flex: 0 0 450px;
+            width: 450px;
+            min-height: 100vh;
+            padding: 40px 46px;
+            background: #fff;
+            box-shadow: 5px 0 12px rgba(0, 0, 0, 0.06);
+            z-index: 1;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+            color: #202020;
+            white-space: nowrap;
+        }
+
+        .brand img {
+            width: 70px;
+            height: auto;
+        }
+
+        .brand span {
+            font-size: 29px;
+            font-weight: 600;
+            letter-spacing: -0.7px;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 21px;
+            margin-top: 126px;
+        }
+
+        .action-button {
+            width: 100%;
+            min-height: 84px;
+            padding: 18px 23px;
+            border: 1px solid #111;
+            border-radius: 8px;
+            background: #d00000;
+            color: white;
+            font-size: 23px;
+            font-weight: 700;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .action-button:hover {
+            background: #b90000;
+        }
+
+        .action-button:focus-visible {
+            outline: 3px solid #777;
+            outline-offset: 3px;
+        }
+
+        .action-button:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        .settings-button {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-button span:last-child {
+            font-size: 22px;
+        }
+        
+        /* Expand/collapse settings */
+        .settings-options[hidden] {
+            display: none !important;
+        }
+
+        .settings-options:not([hidden]) {
+            display: block;
+        }
+
+        /* Point Size layout */
+        .point-size-section {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px 0;
+        }
+
+        .point-size-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .point-size-header label {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        #pointSizeValue {
+            min-width: 2.5em;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .point-size-slider {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        .point-size-slider .form-range {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+        }
+
+        .slider-markers {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 6px;
+            color: #777;
+            font-size: 0.8rem;
+        }
+
+        .point-slider {
+            width: 100%;
+            min-width: 0;
+            padding: 0 8px;
+            box-sizing: border-box;
+        }
+
+        .point-slider .form-range {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+        }
+
+        .slider-labels {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            width: 100%;
+            margin-top: 6px;
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+
+        .slider-labels span:first-child {
+            text-align: left;
+        }
+
+        .slider-labels span:nth-child(2) {
+            text-align: center;
+        }
+
+        .slider-labels span:last-child {
+            text-align: right;
+        }
+
+        #pointSizeValue {
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        .settings-options label {
+            display: block;
+            margin: 8px 0;
+        }
+
+        .verification {
+            margin-top: 88px;
+        }
+
+        .verification h2 {
+            margin: 0 0 14px;
+            font-size: 30px;
+            font-weight: 600;
+        }
+
+        #verificationResult {
+            color: #555;
+            font-size: 16px;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            padding: 62px 45px 50px;
+        }
+
+        .intro h1 {
+            margin: 0 0 17px;
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        .intro p {
+            margin: 0;
+            color: #5b5b5b;
+            font-size: 17px;
+            line-height: 1.6;
+        }
+
+        .scan-card {
+            width: 100%;
+            max-width: 900px;
+            height: 737px;
+            margin: 73px auto 0;
+            padding: 25px 26px;
+            overflow: hidden;
+            border-radius: 9px;
+            background: #fff;
+        }
+
+        .scan-card h2 {
+            margin: 0;
+            color: #555;
+            font-size: 17px;
+            font-weight: 500;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: calc(100% - 35px);
+            margin-top: 15px;
+            overflow: hidden;
+            background: #fff;
+            border: 0;
+            border-radius: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #cameraFeed {
+            display: none;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #fff;
+        }
+
+        #placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            color: #555;
+            text-align: center;
+        }
+
+        .placeholder-message {
+            max-width: 360px;
+            line-height: 1.7;
+        }
+
+        .axis-guide {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .scan-controls {
+            display: flex;
+            justify-content: flex-start;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .scan-controls button {
+            padding: 10px 18px;
+            border: 0;
+            border-radius: 6px;
+            background: #d00000;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #stopButton {
+            background: #444;
+        }
+
+        #status {
+            min-height: 24px;
+            margin-top: 12px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .privacy {
+            color: #666;
+            font-size: 13px;
+        }
+
+        /* Smaller screens */
+        @media (max-width: 1100px) {
+            .sidebar {
+                flex-basis: 320px;
+                width: 320px;
+                padding: 30px 25px;
+            }
+
+            .brand img {
+                width: 55px;
+            }
+
+            .brand span {
+                font-size: 22px;
+            }
+
+            .action-button {
+                min-height: 68px;
+                font-size: 18px;
+            }
+
+            .main-content {
+                padding: 40px 28px;
+            }
+
+            .scan-card {
+                height: min(68vw, 700px);
+                min-height: 450px;
+                margin-top: 45px;
+            }
+
+            .verification h2 {
+                font-size: 24px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .app-layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                min-height: auto;
+                flex-basis: auto;
+                padding: 22px;
+            }
+
+            .brand span {
+                font-size: 24px;
+            }
+
+            .sidebar-actions {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+                margin-top: 25px;
+            }
+
+            .action-button {
+                min-height: 60px;
+                padding: 12px;
+                font-size: 15px;
+            }
+
+            .verification {
+                margin-top: 25px;
+            }
+
+            .main-content {
+                padding: 30px 18px;
+            }
+
+            .intro h1 {
+                font-size: 28px;
+            }
+
+            .intro p {
+                font-size: 15px;
+            }
+
+            .scan-card {
+                height: 65vh;
+                min-height: 360px;
+                margin-top: 30px;
+                padding: 18px;
+            }
+        }
+
+     </style>
+</head>
+<body>
+
+    
+<div class="app-layout">
+
+    <aside class="sidebar">
+        <a href="/" class="brand">
+            <img
+                src="https://bullfincher.io/logos/us/TXN.png"
+                alt="Texas Instruments logo"
+            >
+            <span>Texas Instruments</span>
+        </a>
+
+        <div class="sidebar-actions">
+            <button id="beginButton" class="action-button" type="button">
+                Start Scan
+            </button>
+
+            <button id="adjustUsersButton" class="action-button" type="button">
+                Adjust Verified Users
+            </button>
+
+            <button id="testScannerButton" class="action-button" type="button">
+                Test Facial Scanner
+            </button>
+
+            <button
+                id="settingsButton"
+                class="action-button settings-button"
+                type="button"
+                aria-expanded="false"
+                aria-controls="settingsOptions"
+            >
+                <span>Viewport Settings</span>
+                <span id="settingsArrow" aria-hidden="true">⌄</span>
+            </button>
+
+            <div id="settingsOptions" class="settings-options" hidden>
+                <h6 class="centered">Color Options: </h6>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="colorRadio" id="colorLight" value="light">
+                    <label class="form-check-label" for="inlineRadio1">Light</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="colorRadio" id="colorDark" value="dark">
+                    <label class="form-check-label" for="inlineRadio2">Dark</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="colorRadio" id="colorGray" value="gray">
+                    <label class="form-check-label" for="inlineRadio3">Gray</label>
+                </div>
+                <div class="point-size-section">
+                    <div class="point-size-header">
+                        <label for="customRange">Point Size</label>
+                        <span id="pointSizeValue" aria-live="polite">15</span>
+                    </div>
+
+                    <div class="point-size-slider">
+                        <input
+                            type="range"
+                            class="form-range"
+                            min="0"
+                            max="30"
+                            step="1"
+                            value="15"
+                            id="customRange"
+                        >
+
+                        <div class="slider-markers">
+                            <span>0</span>
+                            <span>15</span>
+                            <span>30</span>
+                        </div>
+                    </div>
+                </div>
+                <h6 class="centered">Mesh Shape: </h6>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="meshRadio" id="meshNone" value="none">
+                    <label class="form-check-label" for="inlineRadio1">None</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="meshRadio" id="meshTriangle" value="triangle">
+                    <label class="form-check-label" for="inlineRadio2">Triangle</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="meshRadio" id="meshSquare" value="square">
+                    <label class="form-check-label" for="inlineRadio3">Square</label>
+                </div>
+                <h6 class="centered">Toggle Zoom: </h6>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="zoomRadio" id="zoomOn" value="on">
+                    <label class="form-check-label" for="inlineRadio1">On</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="zoomRadio" id="zoomOff" value="off">
+                    <label class="form-check-label" for="inlineRadio2">Off</label>
+                </div>
+            </div>
+        </div>
+
+        <section class="verification">
+            <h2>Verification Status:</h2>
+            <p id="verificationResult" aria-live="polite"></p>
+        </section>
+    </aside>
+
+    <main class="main-content">
+        <header class="intro">
+            <h1>Hello!</h1>
+            <p>
+                Click Start Scan to begin scanning face. Once completed,
+                a 3D Point Cloud will be created for verification purposes.
+            </p>
+        </header>
+
+        <section class="scan-card">
+            <h2>Face Scan</h2>
+                <div class="scan-controls">
+                <button id="stopButton" type="button" disabled>
+                    Stop Scan
+                </button>
+            </div>
+
+                <p id="status" role="status" aria-live="polite">
+                    Scanner ready.
+                </p>
+
+                <!-- <p class="privacy">
+                    Camera processing runs through the local Python application.
+                </p> -->
+            <div class="video-container">
+                <img
+                    id="cameraFeed"
+                    alt="Live face alignment camera feed"
+                >
+            </div>
+        </section>
+    </main>
+
+</div>
+
+
+    <script>
+        const cameraFeed = document.getElementById("cameraFeed");
+        const placeholder = document.getElementById("placeholder");
+        const beginButton = document.getElementById("beginButton");
+        const stopButton = document.getElementById("stopButton");
+        const status = document.getElementById("status");
+        const settingsButton = document.getElementById("settingsButton");
+        const settingsOptions = document.getElementById("settingsOptions");
+        const verificationResult = document.getElementById("verificationResult");
+        const pointSizeSlider = document.getElementById("customRange");
+        const pointSizeValue = document.getElementById("pointSizeValue");
+
+        let scanning = false;
+
+        beginButton.addEventListener("click", async () => {
+            if (scanning) return;
+
+            beginButton.disabled = true;
+            status.textContent = "Checking camera...";
+
+            try {
+                // Check the Flask camera backend through Node.js.
+                const response = await fetch("/health", {
+                    cache: "no-store"
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.ok) {
+                    throw new Error(
+                        result.error || "Camera check failed."
+                    );
+                }
+
+                // Camera is ready; show the video feed.
+                scanning = true;
+
+                placeholder.style.display = "none";
+                cameraFeed.style.display = "block";
+
+                stopButton.disabled = false;
+                status.textContent = "Starting face scan...";
+
+                cameraFeed.src = "/video_feed?t=" + Date.now();
+
+            } catch (error) {
+                status.textContent = "Scan error: " + error.message;
+
+                beginButton.disabled = false;
+                scanning = false;
+            }
+        });
+
+        cameraFeed.addEventListener("load", () => {
+            if (scanning) {
+                status.textContent =
+                    "Scan running. Follow the instructions shown on the video.";
+            }
+        });
+
+        cameraFeed.addEventListener("error", () => {
+            if (scanning) {
+                status.textContent =
+                    "Unable to display the camera feed. Check the camera and server.";
+            }
+        });
+
+        stopButton.addEventListener("click", stopScan);
+
+        function stopScan() {
+            scanning = false;
+
+            // Clearing the image source closes the streaming request.
+            cameraFeed.src = "";
+            cameraFeed.style.display = "none";
+            placeholder.style.display = "block";
+
+            beginButton.disabled = false;
+            stopButton.disabled = true;
+
+            status.textContent = "Scan stopped.";
+        }
+
+        window.addEventListener("beforeunload", () => {
+            cameraFeed.src = "";
+        });
+
+        document.getElementById("adjustUsersButton").addEventListener("click", () => {
+            verificationResult.textContent =
+                "Verified-user management is not connected yet.";
+        });
+
+        document.getElementById("testScannerButton").addEventListener("click", async () => {
+            document.getElementById("status").textContent =
+                "Testing camera connection...";
+
+            try {
+                const response = await fetch("/health", { cache: "no-store" });
+                const result = await response.json();
+
+                if (!response.ok || !result.ok) {
+                    throw new Error(result.error || "Camera check failed.");
+                }
+
+                document.getElementById("status").textContent =
+                    "Camera backend is responding.";
+            } catch (error) {
+                document.getElementById("status").textContent =
+                    "Scanner test failed: " + error.message;
+            }
+        });
+  
+        
+        /* Viewport Settings expand/collapse */
+        const settingsArrow = document.getElementById("settingsArrow");
+
+        if (settingsButton && settingsOptions) {
+            settingsButton.addEventListener("click", () => {
+                const opening = settingsOptions.hidden;
+
+                settingsOptions.hidden = !opening;
+                settingsButton.setAttribute("aria-expanded", String(opening));
+
+                if (settingsArrow) {
+                    settingsArrow.textContent = opening ? "⌃" : "⌄";
+                }
+            });
+        }
+
+        /* Point Size live value */
+        if (pointSizeSlider && pointSizeValue) {
+            const updatePointSize = () => {
+                pointSizeValue.textContent = pointSizeSlider.value;
+            };
+
+            pointSizeSlider.addEventListener("input", updatePointSize);
+            updatePointSize();
+        }
+
+    </script>
+</body>
+</html>
