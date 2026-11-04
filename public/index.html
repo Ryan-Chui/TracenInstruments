@@ -30,6 +30,7 @@
             min-height: 100%;
             font-family: Arial, Helvetica, sans-serif;
             color: #202020;
+            zoom: 80%;
         }
 
         body {
@@ -50,6 +51,54 @@
             background: #fff;
             box-shadow: 5px 0 12px rgba(0, 0, 0, 0.06);
             z-index: 1;
+            position: relative;
+            overflow: visible;
+        }
+
+        .settings-options {
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            right: 10px;
+            width: auto;
+            max-height: 80%;
+            overflow-y: auto;
+            border-radius: 12px;
+            padding: 20px;
+            background: #f9f9f9;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+            z-index: 1000;
+
+            opacity: 0;
+            visibility: hidden;
+            scale: 0.95;
+            transition:
+                opacity 0.2s ease,
+                scale 0.2s ease,
+                visibility 0.2s ease;
+        }
+
+        .settings-options.show {
+            opacity: 1;
+            visibility: visible;
+            scale:1;
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+
+        .close-settings {
+            background: transparent;
+            border: none;
+            font-size: 25px;
+            cursor: pointer;
+            line-height: 1;
         }
 
         .brand {
@@ -295,22 +344,6 @@
             background: #fff;
         }
 
-        #placeholder {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 15px;
-            color: #555;
-            text-align: center;
-        }
-
-        .placeholder-message {
-            max-width: 360px;
-            line-height: 1.7;
-        }
-
         .axis-guide {
             position: absolute;
             inset: 0;
@@ -470,18 +503,18 @@
                 Test Facial Scanner
             </button>
 
-            <button
-                id="settingsButton"
-                class="action-button settings-button"
-                type="button"
-                aria-expanded="false"
-                aria-controls="settingsOptions"
-            >
+            <button id="settingsButton" class="action-button settings-button" type="button">
                 <span>Viewport Settings</span>
                 <span id="settingsArrow" aria-hidden="true">⌄</span>
             </button>
 
             <div id="settingsOptions" class="settings-options" hidden>
+                <div class="settings-header">
+                    <h5>Viewport Settings</h5> 
+                    <button type="button" id="closeSettings" class="close-settings">
+                        &times;
+                    </button>
+                </div>
                 <h6 class="centered">Color Options: </h6>
                 <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="colorRadio" id="colorLight" value="light">
@@ -579,60 +612,6 @@
                     id="cameraFeed"
                     alt="Live face alignment camera feed"
                 >
-
-                <div id="placeholder">
-                    <svg
-                        id="axisGuide"
-                        class="axis-guide"
-                        viewBox="0 0 800 650"
-                        preserveAspectRatio="none"
-                        aria-hidden="true"
-                    >
-                        <defs>
-                            <marker
-                                id="arrow"
-                                markerWidth="7"
-                                markerHeight="7"
-                                refX="5"
-                                refY="3"
-                                orient="auto"
-                            >
-                                <path
-                                    d="M0,0 L6,3 L0,6"
-                                    fill="none"
-                                    stroke="#111"
-                                    stroke-width="1"
-                                />
-                            </marker>
-                        </defs>
-
-                        <g
-                            id="coordinateAxes"
-                            fill="none"
-                            stroke="#111"
-                            stroke-width="1"
-                        >
-                            <path
-                                d="M48 440 L48 20"
-                                marker-end="url(#arrow)"
-                            />
-                            <path
-                                d="M55 440 L300 365"
-                                marker-end="url(#arrow)"
-                            />
-                            <path
-                                d="M52 447 L240 580"
-                                marker-end="url(#arrow)"
-                            />
-                        </g>
-                    </svg>
-
-                    <div class="placeholder-message">
-                        <p id="placeholderText" hidden>
-                            Your camera feed will appear here.
-                        </p>
-                    </div>
-                </div>
             </div>
         </section>
     </main>
@@ -642,56 +621,98 @@
 
     <script>
         const cameraFeed = document.getElementById("cameraFeed");
-        const placeholder = document.getElementById("placeholder");
         const beginButton = document.getElementById("beginButton");
         const stopButton = document.getElementById("stopButton");
         const status = document.getElementById("status");
-        const settingsButton = document.getElementById("settingsButton");
-        const settingsOptions = document.getElementById("settingsOptions");
         const verificationResult = document.getElementById("verificationResult");
         const pointSizeSlider = document.getElementById("customRange");
         const pointSizeValue = document.getElementById("pointSizeValue");
+        const settingsOptions = document.getElementById("settingsOptions");
+        const closeSettings = document.getElementById("closeSettings");
+        const settingsButton = document.getElementById("settingsButton");
 
         let scanning = false;
 
-        beginButton.addEventListener("click", async () => {
-            if (scanning) return;
+        // beginButton.addEventListener("click", async () => {
+        //     if (scanning) return;
 
-            beginButton.disabled = true;
-            status.textContent = "Checking camera...";
+        //     beginButton.disabled = true;
+        //     status.textContent = "Checking camera...";
 
-            try {
-                // Check the Flask camera backend through Node.js.
-                const response = await fetch("/health", {
-                    cache: "no-store"
-                });
+        //     try {
+        //         // Check the Flask camera backend through Node.js.
+        //         const response = await fetch("/health", {
+        //             cache: "no-store"
+        //         });
 
-                const result = await response.json();
+        //         const result = await response.json();
 
-                if (!response.ok || !result.ok) {
-                    throw new Error(
-                        result.error || "Camera check failed."
-                    );
-                }
+        //         if (!response.ok || !result.ok) {
+        //             throw new Error(
+        //                 result.error || "Camera check failed."
+        //             );
+        //         }
 
-                // Camera is ready; show the video feed.
-                scanning = true;
+        //         // Camera is ready; show the video feed.
+        //         scanning = true;
 
-                placeholder.style.display = "none";
-                cameraFeed.style.display = "block";
+        //         placeholder.style.display = "none";
+        //         cameraFeed.style.display = "block";
 
-                stopButton.disabled = false;
-                status.textContent = "Starting face scan...";
+        //         stopButton.disabled = false;
+        //         status.textContent = "Starting face scan...";
 
-                cameraFeed.src = "/video_feed?t=" + Date.now();
+        //         cameraFeed.src = "/video_feed?t=" + Date.now();
 
-            } catch (error) {
-                status.textContent = "Scan error: " + error.message;
+        //     } catch (error) {
+        //         status.textContent = "Scan error: " + error.message;
 
-                beginButton.disabled = false;
-                scanning = false;
-            }
+        //         beginButton.disabled = false;
+        //         scanning = false;
+        //     }
+        // });
+beginButton.addEventListener("click", async () => {
+    if (scanning) return;
+
+    beginButton.disabled = true;
+    status.textContent = "Checking camera...";
+
+    try {
+        const response = await fetch("/health", {
+            cache: "no-store"
         });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+            throw new Error(result.error || "Camera check failed.");
+        }
+
+
+        if (!cameraFeed) {
+            throw new Error("Camera feed element not found.");
+        }
+
+        // Camera is ready
+        scanning = true;
+
+        cameraFeed.style.display = "block";
+
+        stopButton.disabled = false;
+        status.textContent = "Starting face scan...";
+
+        cameraFeed.src = "/video_feed?t=" + Date.now();
+
+    } catch (error) {
+        console.error("Scan initialization error:", error);
+
+        status.textContent = "Scan error: " + error.message;
+
+        beginButton.disabled = false;
+        scanning = false;
+    }
+});
+
 
         cameraFeed.addEventListener("load", () => {
             if (scanning) {
@@ -715,7 +736,6 @@
             // Clearing the image source closes the streaming request.
             cameraFeed.src = "";
             cameraFeed.style.display = "none";
-            placeholder.style.display = "block";
 
             beginButton.disabled = false;
             stopButton.disabled = true;
@@ -754,20 +774,34 @@
   
         
         /* Viewport Settings expand/collapse */
-        const settingsArrow = document.getElementById("settingsArrow");
-
-        if (settingsButton && settingsOptions) {
-            settingsButton.addEventListener("click", () => {
-                const opening = settingsOptions.hidden;
-
-                settingsOptions.hidden = !opening;
-                settingsButton.setAttribute("aria-expanded", String(opening));
-
-                if (settingsArrow) {
-                    settingsArrow.textContent = opening ? "⌃" : "⌄";
-                }
+        settingsButton.addEventListener("click", () => {
+            settingsOptions.hidden = false;
+             requestAnimationFrame(() => {
+                settingsOptions.classList.add("show");
             });
-        }
+        });
+
+        closeSettings.addEventListener("click", () => {
+            settingsOptions.classList.remove("show");
+            setTimeout(() => {
+                settingsOptions.hidden = true;
+            }, 200);
+        });
+
+        // const settingsArrow = document.getElementById("settingsArrow");
+
+        // if (settingsButton && settingsOptions) {
+        //     settingsButton.addEventListener("click", () => {
+        //         const opening = settingsOptions.hidden;
+
+        //         settingsOptions.hidden = !opening;
+        //         settingsButton.setAttribute("aria-expanded", String(opening));
+
+        //         if (settingsArrow) {
+        //             settingsArrow.textContent = opening ? "⌃" : "⌄";
+        //         }
+        //     });
+        // }
 
         /* Point Size live value */
         if (pointSizeSlider && pointSizeValue) {
