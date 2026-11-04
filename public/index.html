@@ -55,7 +55,7 @@
             overflow: visible;
         }
 
-        .settings-options {
+        .modal-options {
             position: absolute;
             top: 50%;
             left: 10%;
@@ -78,13 +78,13 @@
                 visibility 0.2s ease;
         }
 
-        .settings-options.show {
+        .modal-options.show {
             opacity: 1;
             visibility: visible;
             scale:1;
         }
 
-        .settings-header {
+        .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -168,11 +168,11 @@
         }
         
         /* Expand/collapse settings */
-        .settings-options[hidden] {
+        .modal-options[hidden] {
             display: none !important;
         }
 
-        .settings-options:not([hidden]) {
+        .modal-options:not([hidden]) {
             display: block;
         }
 
@@ -264,7 +264,7 @@
             margin-left: 4px;
         }
 
-        .settings-options label {
+        .modal-options label {
             display: block;
             margin: 8px 0;
         }
@@ -342,14 +342,6 @@
             height: 100%;
             object-fit: contain;
             background: #fff;
-        }
-
-        .axis-guide {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
         }
 
         .scan-controls {
@@ -508,8 +500,18 @@
                 <span id="settingsArrow" aria-hidden="true">⌄</span>
             </button>
 
-            <div id="settingsOptions" class="settings-options" hidden>
-                <div class="settings-header">
+            <div id="adjustUsers" class="modal-options" hidden>
+                <div class="modal-header">
+                    <h5>Adjust Verified Users</h5> 
+                    <button type="button" id="closeAdjustUsers" class="close-settings">
+                        &times;
+                    </button>
+                </div>
+                <p class="centered">to be done...</p>
+            </div>
+
+            <div id="settingsOptions" class="modal-options" hidden>
+                <div class="modal-header">
                     <h5>Viewport Settings</h5> 
                     <button type="button" id="closeSettings" class="close-settings">
                         &times;
@@ -630,6 +632,7 @@
         const settingsOptions = document.getElementById("settingsOptions");
         const closeSettings = document.getElementById("closeSettings");
         const settingsButton = document.getElementById("settingsButton");
+        const adjustUsersButton = document.getElementById("adjustUsersButton");
 
         let scanning = false;
 
@@ -776,7 +779,7 @@ beginButton.addEventListener("click", async () => {
         /* Viewport Settings expand/collapse */
         settingsButton.addEventListener("click", () => {
             settingsOptions.hidden = false;
-             requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
                 settingsOptions.classList.add("show");
             });
         });
@@ -788,20 +791,19 @@ beginButton.addEventListener("click", async () => {
             }, 200);
         });
 
-        // const settingsArrow = document.getElementById("settingsArrow");
+        adjustUsersButton.addEventListener("click", () => {
+            adjustUsers.hidden = false;
+            requestAnimationFrame(() => {
+                adjustUsers.classList.add("show");
+            });
+        });
 
-        // if (settingsButton && settingsOptions) {
-        //     settingsButton.addEventListener("click", () => {
-        //         const opening = settingsOptions.hidden;
-
-        //         settingsOptions.hidden = !opening;
-        //         settingsButton.setAttribute("aria-expanded", String(opening));
-
-        //         if (settingsArrow) {
-        //             settingsArrow.textContent = opening ? "⌃" : "⌄";
-        //         }
-        //     });
-        // }
+        closeAdjustUsers.addEventListener("click", () => {
+            adjustUsers.classList.remove("show");
+            setTimeout(() => {
+                adjustUsers.hidden = true;
+            }, 200);
+        });
 
         /* Point Size live value */
         if (pointSizeSlider && pointSizeValue) {
