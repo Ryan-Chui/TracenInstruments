@@ -28,7 +28,6 @@
         body {
             margin: 0;
             min-height: 100%;
-            zoom: 80%;
             font-family: Arial, Helvetica, sans-serif;
             color: #202020;
         }
@@ -572,14 +571,68 @@
                     Scanner ready.
                 </p>
 
-                <!-- <p class="privacy">
+                <p class="privacy">
                     Camera processing runs through the local Python application.
-                </p> -->
+                </p>
             <div class="video-container">
                 <img
                     id="cameraFeed"
                     alt="Live face alignment camera feed"
                 >
+
+                <div id="placeholder">
+                    <svg
+                        id="axisGuide"
+                        class="axis-guide"
+                        viewBox="0 0 800 650"
+                        preserveAspectRatio="none"
+                        aria-hidden="true"
+                    >
+                        <defs>
+                            <marker
+                                id="arrow"
+                                markerWidth="7"
+                                markerHeight="7"
+                                refX="5"
+                                refY="3"
+                                orient="auto"
+                            >
+                                <path
+                                    d="M0,0 L6,3 L0,6"
+                                    fill="none"
+                                    stroke="#111"
+                                    stroke-width="1"
+                                />
+                            </marker>
+                        </defs>
+
+                        <g
+                            id="coordinateAxes"
+                            fill="none"
+                            stroke="#111"
+                            stroke-width="1"
+                        >
+                            <path
+                                d="M48 440 L48 20"
+                                marker-end="url(#arrow)"
+                            />
+                            <path
+                                d="M55 440 L300 365"
+                                marker-end="url(#arrow)"
+                            />
+                            <path
+                                d="M52 447 L240 580"
+                                marker-end="url(#arrow)"
+                            />
+                        </g>
+                    </svg>
+
+                    <div class="placeholder-message">
+                        <p id="placeholderText" hidden>
+                            Your camera feed will appear here.
+                        </p>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
