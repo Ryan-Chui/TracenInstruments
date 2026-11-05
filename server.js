@@ -74,8 +74,8 @@ const server = http.createServer((req, res) => {
             filePath = path.join(__dirname, 'public', 'index.html');
             break;
 
-        case '/shop':
-            filePath = path.join(__dirname, 'public', 'shop.html');
+        case '/users':
+            filePath = path.join(__dirname, 'public', 'users.html');
             break;
 
         default:
