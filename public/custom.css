@@ -72,7 +72,10 @@ body {
   background-color: var(--surface) !important;
 }
 
-.text-dark,
-.text-muted {
+.text-dark {
   color: var(--text) !important;
+}
+
+.text-muted {
+  color: var(--muted) !important;
 }

@@ -68,6 +68,7 @@ const server = http.createServer((req, res) => {
 
     // Serve the existing HTML pages.
     let filePath;
+    let contentType = 'text/html; charset=utf-8';
 
     switch (pathname) {
         case '/':
@@ -76,6 +77,11 @@ const server = http.createServer((req, res) => {
 
         case '/users':
             filePath = path.join(__dirname, 'public', 'users.html');
+            break;
+
+        case '/custom.css':
+            filePath = path.join(__dirname, 'public', 'custom.css');
+            contentType = 'text/css; charset=utf-8';
             break;
 
         default:
@@ -94,7 +100,7 @@ const server = http.createServer((req, res) => {
         }
 
         res.statusCode = 200;
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Content-Type', contentType);
         res.end(data);
     });
 });
