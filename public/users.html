@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Verified Users</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="custom.css">
+</head>
+<body>
+<div class="container py-4">
+    <a href="/">← Back</a>
+    <h1 class="my-3">Verified Users</h1>
+
+    <form id="addForm" class="form-inline mb-3">
+        <input id="newName" class="form-control mr-2" placeholder="Name" required>
+        <input id="newRole" class="form-control mr-2" placeholder="Role">
+        <button class="btn btn-primary" type="submit">Add</button>
+    </form>
+
+    <p id="message" role="status"></p>
+
+    <table class="table">
+        <thead><tr><th>Name</th><th>Role</th><th></th></tr></thead>
+        <tbody id="userRows"></tbody>
+    </table>
+</div>
+
+<script>
+const rows = document.getElementById("userRows");
+const message = document.getElementById("message");
+
+async function api(url, options) {
+    const res = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Request failed.");
+    }
+    return res.status === 204 ? null : res.json();
+}
+
+async function loadUsers() {
+    try {
+        const users = await api("/api/users");
+        rows.innerHTML = "";
+        users.forEach((u) => {
+            const tr = document.createElement("tr");
+
+            const name = document.createElement("td");
+            name.textContent = u.name;      // textContent avoids HTML injection
+            const role = document.createElement("td");
+            role.textContent = u.role;
+
+            const actions = document.createElement("td");
+            const del = document.createElement("button");
+            del.className = "btn btn-sm btn-outline-danger";
+            del.textContent = "Remove";
+            del.addEventListener("click", () => removeUser(u.id));
+            actions.appendChild(del);
+
+            tr.append(name, role, actions);
+            rows.appendChild(tr);
+        });
+    } catch (e) {
+        message.textContent = "Could not load users: " + e.message;
+    }
+}
+
+async function removeUser(id) {
+    if (!confirm("Remove this user?")) return;
+    try {
+        await api("/api/users/" + id, { method: "DELETE" });
+        loadUsers();
+    } catch (e) { message.textContent = e.message; }
+}
+
+document.getElementById("addForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+        await api("/api/users", {
+            method: "POST",
+            body: JSON.stringify({
+                name: document.getElementById("newName").value,
+                role: document.getElementById("newRole").value,
+            }),
+        });
+        e.target.reset();
+        loadUsers();
+    } catch (err) { message.textContent = err.message; }
+});
+
+// Apply the saved theme on this page too
+try {
+    document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "light");
+} catch (e) {}
+
+loadUsers();
+</script>
+</body>
+</html>

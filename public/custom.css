@@ -1,0 +1,78 @@
+/* Theme definitions */
+:root,
+[data-theme="light"] {
+    --bg: #f4f4f4;
+    --surface: #ffffff;
+    --surface-2: #f9f9f9;
+    --text: #202020;
+    --muted: #5b5b5b;
+    --border: #dddddd;
+}
+
+[data-theme="dark"] {
+    --bg: #121212;
+    --surface: #1e1e1e;
+    --surface-2: #262626;
+    --text: #f0f0f0;
+    --muted: #a8a8a8;
+    --border: #3a3a3a;
+}
+
+[data-theme="gray"] {
+    --bg: #b8bdc4;
+    --surface: #d1d5db;
+    --surface-2: #c4c8ce;
+    --text: #222222;
+    --muted: #444444;
+    --border: #9ca3af;
+}
+
+/* Page */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* Bootstrap components: add the ones you use */
+.card,
+.modal-content,
+.dropdown-menu,
+.list-group-item,
+.navbar,
+.jumbotron {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.form-control {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.table {
+  color: var(--text);
+}
+
+.table td,
+.table th {
+  border-color: var(--border);
+}
+
+.navbar-light .navbar-brand,
+.navbar-light .nav-link {
+  color: var(--text);
+}
+
+/* Bootstrap utility classes use !important, so you need it too */
+.bg-light,
+.bg-white {
+  background-color: var(--surface) !important;
+}
+
+.text-dark,
+.text-muted {
+  color: var(--text) !important;
+}
