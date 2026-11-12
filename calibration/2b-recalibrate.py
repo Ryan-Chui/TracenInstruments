@@ -5,7 +5,11 @@ No projector or camera needed.
 import glob
 import json
 import os
+import sys
+from pathlib import Path
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scanner.calibration import ProjCamCalibrator
 from scanner.calibration.projcam_calibrator import infer_projector_size
@@ -35,7 +39,7 @@ circle_grid_size = (4, 11)
 def newest_camera_folder():
     paths = glob.glob('./data/calib_results/*/cam_mtx.npy')
     if not paths:
-        raise SystemExit('No camera calibration found. Run 1-calibrate_camera.py first.')
+        raise SystemExit('No camera calibration found. Run calibration/1-calibrate_camera.py first.')
     return os.path.dirname(max(paths, key=os.path.getmtime))
 
 

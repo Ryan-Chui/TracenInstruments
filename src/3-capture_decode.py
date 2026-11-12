@@ -11,7 +11,7 @@ from scanner.grayCode.decode_codes import decode_sequence, combine_codes, codes_
 from scanner.utils import visualize
 
 # Settings
-# Camera: same as in 1-calibrate_camera.py and 2-calibrate_projcam.py
+# Camera: same as in calibration/1-calibrate_camera.py and calibration/2-calibrate_projcam.py
 cam_src = 0
 cam_width, cam_height = (1920, 1080)
 cam_fps = 30

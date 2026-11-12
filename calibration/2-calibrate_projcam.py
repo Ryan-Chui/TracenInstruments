@@ -1,9 +1,13 @@
 import glob
 import json
 import os
+import sys
 import time
+from pathlib import Path
 import cv2
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scanner.acquisition import Camera, ProjectorWindow
 from scanner.acquisition.projector import place_window
@@ -12,7 +16,7 @@ from scanner.calibration import ProjCamCalibrator
 # SETTINGS
 cam_src = 0
 cam_width, cam_height = (1920, 1080)
-cam_fps = 30
+cam_fps = 20
 
 # 'auto' = the folder holding camera calibration from part 1.
 cam_result_folder = 'auto'
@@ -47,7 +51,7 @@ SETTLE_S = 0.6 # wait after the projected grid moves, so the camera shows the ne
 def newest_camera_folder():
     paths = glob.glob('./data/calib_results/*/cam_mtx.npy')
     if not paths:
-        raise SystemExit('No camera calibration found. Run 1-calibrate_camera.py first.')
+        raise SystemExit('No camera calibration found. Run calibration/1-calibrate_camera.py first.')
     return os.path.dirname(max(paths, key=os.path.getmtime))
 
 

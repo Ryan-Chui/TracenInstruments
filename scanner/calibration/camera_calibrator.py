@@ -16,6 +16,11 @@ class CameraCalibrator(object):
         self.charuco_board = cv2.aruco.CharucoBoard((7, 5), 0.025, 0.018, self.dictionary)
         self.params = cv2.aruco.DetectorParameters()
         self.params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_NONE
+        self.charuco_detector = (
+            cv2.aruco.CharucoDetector(self.charuco_board)
+            if hasattr(cv2.aruco, "CharucoDetector")
+            else None
+        )
 
         # Camera parameters (image size and intrinsic parameters)
         self.cam_width = cam_width
@@ -54,7 +59,14 @@ class CameraCalibrator(object):
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.00001)
 
         # Detect markers and corners
-        corners, ids, rejected = cv2.aruco.detectMarkers(gray, self.dictionary, parameters=self.params)
+        if self.charuco_detector is not None:
+            charuco_corners, charuco_ids, corners, ids = self.charuco_detector.detectBoard(gray)
+            rejected = None
+        else:
+            corners, ids, rejected = cv2.aruco.detectMarkers(
+                gray, self.dictionary, parameters=self.params
+            )
+            charuco_corners, charuco_ids = None, None
         allCorners = []
         allIds = []
         if corners is not None and len(corners) > 0:
@@ -62,12 +74,29 @@ class CameraCalibrator(object):
                 frame = cv2.aruco.drawDetectedMarkers(frame, corners, ids)
             for corner in corners:
                 cv2.cornerSubPix(gray, corner, (3,3), (-1,-1), criteria)
-            ret, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(corners, ids, gray, self.charuco_board)
+            if self.charuco_detector is None:
+                ret, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(
+                    corners, ids, gray, self.charuco_board
+                )
+            else:
+                ret = charuco_ids is not None and len(charuco_ids) > 0
+            if charuco_corners is not None and charuco_ids is not None:
+                charuco_corners = np.asarray(charuco_corners, dtype=np.float32).reshape(-1, 1, 2)
+                charuco_ids = np.asarray(charuco_ids, dtype=np.int32).reshape(-1, 1)
+                if len(charuco_corners) != len(charuco_ids):
+                    charuco_corners, charuco_ids = None, None
+                    ret = False
             if charuco_ids is not None and len(charuco_ids) > 0:
                 if draw:
                     frame = cv2.aruco.drawDetectedCornersCharuco(frame, charuco_corners, charuco_ids)
                 if self.cam_mtx is not None and self.cam_dist is not None:
-                    ret, rvec, tvec = cv2.aruco.estimatePoseCharucoBoard(charuco_corners, charuco_ids, self.charuco_board, self.cam_mtx, self.cam_dist, None, None)
+                    board_points = self.charuco_board.getChessboardCorners()[charuco_ids.ravel()]
+                    ret, rvec, tvec = cv2.solvePnP(
+                        board_points,
+                        charuco_corners,
+                        self.cam_mtx,
+                        self.cam_dist,
+                    )
 
                     if ret and draw:
                         frame = cv2.drawFrameAxes(frame, self.cam_mtx, self.cam_dist, rvec, tvec, 0.1)
@@ -127,7 +156,39 @@ class CameraCalibrator(object):
             cameraMatrixInit = self.cam_mtx
             distCoeffsInit = self.cam_dist
 
-        ret, cam_mtx, cam_dist, rvecs, tvecs = cv2.aruco.calibrateCameraCharuco(allCorners, allIds, self.charuco_board, (self.cam_width,self.cam_height), cameraMatrixInit, distCoeffsInit, flags = calib_flags, criteria=(cv2.TERM_CRITERIA_EPS & cv2.TERM_CRITERIA_COUNT, 10000, 1e-9))
+        criteria = (
+            cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT,
+            10000,
+            1e-9,
+        )
+        if hasattr(cv2.aruco, "calibrateCameraCharuco"):
+            ret, cam_mtx, cam_dist, rvecs, tvecs = (
+                cv2.aruco.calibrateCameraCharuco(
+                    allCorners,
+                    allIds,
+                    self.charuco_board,
+                    (self.cam_width, self.cam_height),
+                    cameraMatrixInit,
+                    distCoeffsInit,
+                    flags=calib_flags,
+                    criteria=criteria,
+                )
+            )
+        else:
+            object_points = [
+                self.charuco_board.getChessboardCorners()[ids.ravel()].astype(np.float32)
+                for ids in allIds
+            ]
+            image_points = [corners.astype(np.float32) for corners in allCorners]
+            ret, cam_mtx, cam_dist, rvecs, tvecs = cv2.calibrateCamera(
+                object_points,
+                image_points,
+                (self.cam_width, self.cam_height),
+                cameraMatrixInit,
+                distCoeffsInit,
+                flags=calib_flags,
+                criteria=criteria,
+            )
         print(cam_mtx)
         print(cam_dist)
         print('Error', ret)

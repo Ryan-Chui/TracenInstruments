@@ -24,7 +24,9 @@ This repo uses a projector and camera to scan an objet using structured light (G
 1. Make sure python is installed on your System
 2. Install all dependencies using the `requirements.txt` file
 3. Install scanner module by doing `pip install -e .` in the root of the repo
-4. Run the scripts in `src/` in the right order
+4. Follow the camera/projector calibration workflow in
+   [calibration/README.md](calibration/README.md), then run the scan scripts
+   in `src/`.
 
 ## Scanner module
 
@@ -41,41 +43,43 @@ Here's a list of the packages in this module:
 
 ## Application usage
 
-The application is located in the `src` folder and works in 4 scripts :
+The scan scripts are in `src/`: `3-capture_decode.py` captures Gray-code
+patterns and `4-triangulate.py` reconstructs the point cloud. Camera and
+projector calibration is documented separately in
+[calibration/README.md](calibration/README.md).
 
-1. **calibrate_camera** : 
+The algorithm comparison harness is
+[structured_light_harness.py](structured_light_harness.py). It compares
+three-step phase shifting with single-shot coded-dot projection. The coded-dot
+decoder uses one camera image and the known projected pattern to recover
+camera/projector correspondences; it does not require a second camera.
 
-Use the corresponding variables to set the resolution of the camera and the output path. Run the script to calibrate the camera using the charuco board provided in the repo.
-   
-The ChArUco must be printed and glued to a flat surface in order for the calibration to work. Press `k` to run the calibration and `c` to take a picture. Take at least 10 pictures with different angles for the calibration to work (see pictures below):
+```powershell
+python .\structured_light_harness.py
+```
 
+For real 3D measurements, calibrate the camera and projector and triangulate
+the returned correspondences. The synthetic coded-dot test uses a planar
+homography only to evaluate matching quality.
 
-<p float="left">
-  <img src="images/camera/calibrate_0.jpg" width="32%" />
-  <img src="images/camera/calibrate_1.jpg" width="32%" /> 
-  <img src="images/camera/calibrate_2.jpg" width="32%" />
-</p>
+When the projector is available, the hardware mode loads the saved
+camera/projector calibration and captures one ELP frame:
 
-2. **calibrate_projcam** : 
+```powershell
+python .\structured_light_harness.py --hardware `
+  --camera 1 --width 1920 --height 1080 `
+  --projector-width 1920 --projector-height 1080 `
+  --camera-calibration .\data\calib_results\elp_camera `
+  --projector-calibration .\data\calib_results\my_proj `
+  --stereo-calibration .\data\calib_results\my_stereo
+```
 
-Use the corresponding variables to set the resolution of the camera and the projector for the calibration of the stereo setup and the output path. If the projector is already calibrated, the flag `calibrate_proj` cam be set to `False`. 
-   
-The circle grid pattern must be projected on the board containg the ChArUco in order for the calibration to work. The pictures will be taken automatically when the board does not move for 5 consecutive frames. Press `k` to calibrate the setup. Take at least 10 pictures with different orientations (as seen in the pictures below):
-
-
-<p float="left">
-  <img src="images/projector/calibrate_0.jpg" width="32%" />
-  <img src="images/projector/calibrate_1.jpg" width="32%" /> 
-  <img src="images/projector/calibrate_2.jpg" width="32%" />
-</p>
-
-3. **capture_decode** : 
-
-Use the corresponding variables to set the projector resolution for the gray code images and the output path for the captured images and decoded Gray codes. The pictures will be taken automatically each 0.3 seconds, but if the camera is not fast enough, change the variable `wait_time` to the desired value.
-
-4. **triangulate** : 
-
-Run the script by providing all the right path for the intrinsic parameters of the camera and the projector, the captured image path and the stereo calibration path. The 3D point cloud will open in a separate window.
+Press `Space` in the camera window to capture. The calibration resolution
+arguments must match the resolution used when the projector intrinsics were
+calibrated; if the projector is currently run at another resolution, pass the
+original dimensions with `--projector-calibration-width` and
+`--projector-calibration-height`. The projector must be extended rather than
+mirrored, and the camera/projector must not move after calibration.
 
 ## Disclaimer
 

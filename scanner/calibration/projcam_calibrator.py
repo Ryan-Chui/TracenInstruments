@@ -66,6 +66,11 @@ class ProjCamCalibrator(object):
         self.charuco_board = cv2.aruco.CharucoBoard((7, 5), 0.025, 0.018, self.dictionary)
         self.params = cv2.aruco.DetectorParameters()
         self.params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_NONE
+        self.charuco_detector = (
+            cv2.aruco.CharucoDetector(self.charuco_board)
+            if hasattr(cv2.aruco, "CharucoDetector")
+            else None
+        )
 
         # Marker id -> its 4 corners on the board plane (x, y), used for the image -> board homography
         board_ids = np.array(self.charuco_board.getIds()).flatten()
@@ -147,7 +152,15 @@ class ProjCamCalibrator(object):
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.00001)
 
         # Detect markers and corners
-        corners, ids, rejected = cv2.aruco.detectMarkers(gray, self.dictionary, parameters=self.params)
+        if self.charuco_detector is not None:
+            charuco_corners, charuco_ids, corners, ids = self.charuco_detector.detectBoard(gray)
+        else:
+            corners, ids, _ = cv2.aruco.detectMarkers(
+                gray, self.dictionary, parameters=self.params
+            )
+            _, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(
+                corners, ids, gray, self.charuco_board
+            )
 
         # Keep only markers that belong to this board (a misread marker id would otherwise crash the lookup below)
         if ids is not None:
@@ -162,7 +175,14 @@ class ProjCamCalibrator(object):
             for corner in corners:
                 cv2.cornerSubPix(gray, corner, (3,3), (-1,-1), criteria)
 
-            n, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(corners, ids, gray, self.charuco_board)
+            n = len(charuco_ids) if charuco_ids is not None else 0
+            if charuco_corners is not None and charuco_ids is not None:
+                charuco_corners = np.asarray(charuco_corners, dtype=np.float32).reshape(-1, 1, 2)
+                charuco_ids = np.asarray(charuco_ids, dtype=np.int32).reshape(-1, 1)
+                n = len(charuco_ids)
+                if len(charuco_corners) != n:
+                    charuco_corners, charuco_ids = None, None
+                    n = 0
             if charuco_ids is not None and len(charuco_ids) >= 6:
                 if draw:
                     frame = cv2.aruco.drawDetectedCornersCharuco(frame, charuco_corners, charuco_ids)
@@ -362,7 +382,7 @@ class ProjCamCalibrator(object):
             disparity-to-depth mapping matrix
         """
         if self.cam_mtx is None or self.cam_dist is None:
-            raise ValueError('Camera intrinsics are missing. Run 1-calibrate_camera.py first.')
+            raise ValueError('Camera intrinsics are missing. Run calibration/1-calibrate_camera.py first.')
 
         names = []
         proj_obj_pts = []
