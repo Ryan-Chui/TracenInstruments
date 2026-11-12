@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from scanner.acquisition import Camera, ProjectorWindow
 from scanner.triangulation import Triangulate
+from scanner.utils.visualize import write_ply
 
 
 @dataclass(frozen=True)
@@ -298,15 +299,23 @@ def run_hardware(args):
             proj_T=calibration["proj_T"],
         )
         points = triangulator.triangulate(camera_points, projector_points)
-        valid = np.isfinite(points[2]) & (points[2] > 0)
+        valid = (
+            np.isfinite(points[2])
+            & (points[2] > args.min_depth)
+            & (points[2] < args.max_depth)
+        )
         if not np.any(valid):
             raise RuntimeError("Calibration produced no points in front of the camera.")
         depths = points[2, valid]
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        write_ply(str(output_path), points[:, valid])
         print(
             f"Valid 3D points: {valid.sum()}/{len(valid)}; "
             f"depth range: {depths.min():.3f}-{depths.max():.3f} m; "
             f"median: {np.median(depths):.3f} m"
         )
+        print(f"Point cloud written to {output_path}")
         print(f"Mean descriptor confidence: {confidence[valid].mean():.3f}")
     finally:
         camera.stop_cam()
@@ -330,6 +339,9 @@ def parse_args():
     parser.add_argument("--stereo-calibration", default="./data/calib_results/my_stereo")
     parser.add_argument("--projector-calibration-width", type=int, default=1920)
     parser.add_argument("--projector-calibration-height", type=int, default=1080)
+    parser.add_argument("--output", default="./data/point_clouds/coded_dots.ply")
+    parser.add_argument("--min-depth", type=float, default=0.2)
+    parser.add_argument("--max-depth", type=float, default=3.0)
     parser.add_argument("--period", type=int, default=24)
     parser.add_argument("--disparity", type=int, default=12)
     parser.add_argument("--noise", type=float, default=4.0)

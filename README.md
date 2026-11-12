@@ -81,6 +81,13 @@ original dimensions with `--projector-calibration-width` and
 `--projector-calibration-height`. The projector must be extended rather than
 mirrored, and the camera/projector must not move after calibration.
 
+The hardware run writes valid triangulated positions to
+`data/point_clouds/coded_dots.ply` by default. The PLY contains geometry only,
+without color. Override the destination and depth filter with `--output`,
+`--min-depth`, and `--max-depth`. It can be opened in CloudCompare, MeshLab,
+Blender, or Open3D. Synthetic mode evaluates decoding only; it does not
+produce a meaningful 3D point cloud because it has no physical calibration.
+
 ## Disclaimer
 
 This repository is for educational purposes only. The code and algorithm implemented are derived from the original authors' repositories and papers. All rights are reserved to the original authors of the papers and repositories this code is based on.
