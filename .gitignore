@@ -6,3 +6,6 @@ models/
 
 # Generated calibration photos and capture metadata
 data/CalibrationImgs/
+
+# Generated structured-light point clouds, captures, and decoded arrays
+data/point_clouds/

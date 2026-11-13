@@ -67,12 +67,13 @@ the returned correspondences. The synthetic coded-dot test uses a planar
 homography only to evaluate matching quality.
 
 When the projector is available, the hardware mode loads the saved
-camera/projector calibration and captures one ELP frame:
+camera/projector calibration. The default `dots` algorithm captures one ELP
+frame:
 
 ```powershell
 python .\structured_light_harness.py --hardware `
-  --camera 1 --width 1920 --height 1080 `
-  --projector-width 1920 --projector-height 1080 `
+  --camera 1 --width 1280 --height 720 `
+  --projector-width 1280 --projector-height 720 `
   --camera-calibration .\data\calib_results\elp_camera `
   --projector-calibration .\data\calib_results\my_proj `
   --stereo-calibration .\data\calib_results\my_stereo
@@ -85,12 +86,147 @@ original dimensions with `--projector-calibration-width` and
 `--projector-calibration-height`. The projector must be extended rather than
 mirrored, and the camera/projector must not move after calibration.
 
+The default coded-dot pattern uses 20-pixel spacing, 6-pixel radius, and 65%
+cell occupancy to increase point-cloud density. The
+decoder uses SIFT when available (with ORB fallback), which is more tolerant of
+projector-to-camera scale and blur. These
+projector dots are still separated enough for the current camera scale. If the
+diagnostic output reports weak camera features, increase the radius or reduce
+density, for example:
+
+```powershell
+python .\structured_light_harness.py --hardware --algorithm dots `
+  --dot-spacing 24 --dot-radius 8 --dot-density 0.55 `
+  --output .\data\point_clouds\dots.ply
+```
+
+Each dots capture also saves `dots_camera_capture.png` and
+`dots_projector_pattern.png` beside the requested output. The console reports
+projector and camera feature counts, ratio-test matches, and mutual matches;
+these counts identify whether the problem is dot visibility or descriptor
+matching.
+
+To reject wall points when the ROI border contains only the background, use:
+
+```powershell
+python .\structured_light_harness.py --hardware --algorithm dots `
+  --foreground-only --background-depth-tolerance 0.05 `
+  --output .\data\point_clouds\dots_foreground.ply
+```
+
+The harness fits a sloped background plane from points near the ROI border and
+keeps only points at least 5 cm closer to the local background depth. This
+handles walls that appear at different depths on the left and right sides of
+the image. Keep a visible strip of wall around the subject when selecting the
+ROI.
+
 The hardware run writes valid triangulated positions to
 `data/point_clouds/coded_dots.ply` by default. The PLY contains geometry only,
 without color. Override the destination and depth filter with `--output`,
 `--min-depth`, and `--max-depth`. It can be opened in CloudCompare, MeshLab,
 Blender, or Open3D. Synthetic mode evaluates decoding only; it does not
 produce a meaningful 3D point cloud because it has no physical calibration.
+
+To run the physical three-step phase path, capture each projected phase image
+when prompted:
+
+```powershell
+python .\structured_light_harness.py --hardware --algorithm phase `
+  --period 24 --output .\data\point_clouds\phase.ply
+```
+
+The phase path captures twelve real camera frames: coarse and fine sets of
+three horizontal and three vertical phase shifts. The coarse full-frame phase
+sets the absolute location, while the default 64-pixel fine phase improves
+depth precision. Adjust the fine periods with `--phase-fine-period-x` and
+`--phase-fine-period-y`.
+
+For an experimental two-shot RGB color-stripe scan, use:
+
+```powershell
+python .\structured_light_harness.py --hardware --algorithm color_stripes `
+  --output .\data\point_clouds\color_stripes.ply
+```
+
+The RGB channels carry three phase shifts in each image. The first image
+varies along projector X and the second along projector Y, producing dense
+two-dimensional projector coordinates with only two camera frames. This
+requires the color ELP camera and is more geometrically complete than the
+single-axis version, though it remains more sensitive to color-channel
+calibration and motion than monochrome multi-frame phase shifting.
+
+The color-stripe decoder applies robust per-channel normalization to reduce
+camera white-balance and projector color-gain errors. It also rejects isolated
+depth spikes using a local 5x5 depth-consistency check. Adjust
+`--depth-outlier-tolerance` if valid sharp edges are being removed or noise
+remains.
+
+Color-stripe output also applies a robust Z-depth band around the median
+foreground depth. The default band is ±20 cm; reduce it with
+`--depth-band-tolerance 0.10` to suppress stronger depth smearing, or increase
+it if the subject's valid depth range is being clipped.
+
+To keep only points in front of a wall or other background surface, use the
+same border-based depth filter as the other hardware modes:
+
+```powershell
+python .\structured_light_harness.py --hardware --algorithm color_stripes `
+  --foreground-only --background-depth-tolerance 0.05 `
+  --output .\data\point_clouds\color_stripes_foreground.ply
+```
+
+Leave a strip of background visible around the subject inside the selected
+ROI so the background depth can be estimated.
+
+By default, hardware mode first shows the live camera frame and lets you drag
+a rectangle around the scan area. Press Enter or Space to accept it; press C
+to cancel. No face detection is used. To skip selection and scan the complete
+camera frame, use `--full-frame`.
+
+For scripted runs, apply a camera-image rectangle `X Y WIDTH HEIGHT`:
+
+```powershell
+python .\structured_light_harness.py --hardware --algorithm phase `
+  --camera-roi 250 100 700 520 `
+  --output .\data\point_clouds\phase_roi.ply
+```
+
+The same option works with `--algorithm dots`. Coordinates refer to the
+1280x720 camera image, with `(0, 0)` at the upper-left.
+
+For physical coded-dot scans, ROI masking is applied before ORB feature
+matching. The planar homography rejection used by the synthetic test is
+disabled because a 3D face is not a single plane; mutual descriptor matching
+and the ROI still reject unrelated features.
+
+Phase decoding also reconstructs illuminated background surfaces by design.
+For a mostly planar background around the ROI, remove points near its
+estimated depth with:
+
+```powershell
+python .\structured_light_harness.py --hardware --algorithm phase `
+  --background-depth-tolerance 0.03
+```
+
+The tolerance is in meters. This uses the ROI border as the background
+estimate; keep some background visible around the object and do not use it
+when the border contains the object.
+
+For a face or other object in front of the background, discard all points on
+the background side of that plane:
+
+```powershell
+python .\structured_light_harness.py --hardware --algorithm phase `
+  --foreground-only --background-depth-tolerance 0.03 `
+  --min-depth 0.30 --max-depth 1.20
+```
+
+Depth `z` is measured forward from the camera. Use `--min-depth` and
+`--max-depth` to reject physically impossible near/far points for your setup.
+
+Phase output keeps every valid camera pixel by default. If processing or file
+size becomes excessive, use `--phase-sample-step 2` or `--phase-sample-step 4`
+to decimate the point cloud.
 
 ## Disclaimer
 

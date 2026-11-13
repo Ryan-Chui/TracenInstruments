@@ -4,11 +4,19 @@ import cv2
 import numpy as np
 
 
-def three_step_patterns(shape, period_pixels=24, mean=127, amplitude=100):
-    """Return sinusoidal patterns with phase offsets 0, 120, and 240 degrees."""
+def three_step_patterns(
+    shape, period_pixels=24, mean=127, amplitude=100, axis="x"
+):
+    """Return three phase-shifted patterns varying along one image axis."""
     height, width = shape
-    x = np.arange(width, dtype=np.float32)[None, :]
-    phase = 2 * np.pi * x / period_pixels
+    if axis == "x":
+        coordinate = np.arange(width, dtype=np.float32)[None, :]
+        phase = 2 * np.pi * coordinate / period_pixels
+    elif axis == "y":
+        coordinate = np.arange(height, dtype=np.float32)[:, None]
+        phase = 2 * np.pi * coordinate / period_pixels
+    else:
+        raise ValueError("axis must be 'x' or 'y'")
     return [
         np.broadcast_to(
             mean + amplitude * np.cos(phase + offset), (height, width)
