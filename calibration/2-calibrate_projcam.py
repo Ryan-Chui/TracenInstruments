@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import time
+import argparse
 from pathlib import Path
 import cv2
 import numpy as np
@@ -13,9 +14,29 @@ from scanner.acquisition import Camera, ProjectorWindow
 from scanner.acquisition.projector import place_window
 from scanner.calibration import ProjCamCalibrator
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Calibrate a projector and camera as a structured-light pair.'
+    )
+    parser.add_argument('--projector-width', type=int, default=1280,
+                        help='Projector input width (default: 1280).')
+    parser.add_argument('--projector-height', type=int, default=720,
+                        help='Projector input height (default: 720).')
+    parser.add_argument('--projector-x', type=int, default=1920,
+                        help='Projector window x-position on Windows (default: 1920).')
+    parser.add_argument('--exposure', type=float, default=None,
+                        help='Manual camera exposure value; lower values darken the image.')
+    parser.add_argument('--pattern-white', type=int, default=200,
+                        help='Gray level for the projected grid background (0-255, default: 200).')
+    parser.add_argument('--circle-radius', type=int, default=15,
+                        help='Projected circle radius in input pixels (default: 15).')
+    return parser.parse_args()
+
+
 # SETTINGS
-cam_src = 0
-cam_width, cam_height = (1920, 1080)
+cam_src = 1
+cam_width, cam_height = (1280, 720)
 cam_fps = 20
 
 # 'auto' = the folder holding camera calibration from part 1.
@@ -63,6 +84,7 @@ def next_image_path(folder):
 
 
 if __name__ == '__main__':
+    args = parse_args()
     for folder in (image_folder, proj_result_folder, result_folder):
         os.makedirs(folder, exist_ok=True)
 
@@ -78,7 +100,12 @@ if __name__ == '__main__':
                          f'{cam_width}x{cam_height} camera. Set cam_result_folder to your part 1 results.')
 
     # Window covering the projector display; its size is the projector's real resolution
-    projector = ProjectorWindow('Projector', screen_index=proj_screen_index)
+    projector = ProjectorWindow(
+        'Projector',
+        screen_index=proj_screen_index,
+        size=(args.projector_width, args.projector_height),
+        fallback_x=args.projector_x,
+    )
     proj_width, proj_height = projector.width, projector.height
     print(f'Projector resolution: {proj_width}x{proj_height}')
 
@@ -94,15 +121,22 @@ if __name__ == '__main__':
         proj_mtx = np.load(os.path.join(proj_result_folder, 'proj_mtx.npy'))
         proj_dist = np.load(os.path.join(proj_result_folder, 'proj_dist.npy'))
 
-    # Circle size scales with the projector resolution (15 px radius at 1080p)
-    circle_r = max(6, int(round(15 * proj_height / 1080)))
+    if args.circle_radius < 3:
+        raise SystemExit('--circle-radius must be at least 3 pixels.')
+    circle_r = args.circle_radius
 
     # Remember this session's projector settings, so 2b-recalibrate.py can redo the math without the projector
     with open(os.path.join(image_folder, 'projector.json'), 'w') as fp:
         json.dump(dict(width=proj_width, height=proj_height, circle_r=circle_r, board_offset_mm=board_offset_mm), fp)
 
     # Start camera and calibrator
-    cam = Camera(cam_src, width=cam_width, height=cam_height, fps=cam_fps)
+    cam = Camera(
+        cam_src,
+        width=cam_width,
+        height=cam_height,
+        fps=cam_fps,
+        exposure=args.exposure,
+    )
     calibrator = ProjCamCalibrator(cam_width, cam_height, cam_mtx, cam_dist, proj_width, proj_height, proj_mtx, proj_dist, circle_grid_size, circle_r,
                                    board_offset_m=board_offset_mm / 1000.0)
 
@@ -112,7 +146,12 @@ if __name__ == '__main__':
 
     def show_grid():
         global pattern_time
-        projector.show(calibrator.get_circle_grid_image(*positions[pos_id]))
+        projector.show(
+            calibrator.get_circle_grid_image(
+                *positions[pos_id],
+                white_level=args.pattern_white,
+            )
+        )
         pattern_time = time.time()
 
     show_grid()
@@ -149,11 +188,15 @@ if __name__ == '__main__':
             if ret:
                 ok, frame, circles, _ = calibrator.detect_circle_grid(frame, gray, H)
                 if ok:
-                    circles_2d_cam = circles
+                    circles_2d_cam = np.asarray(circles, dtype=np.float32).reshape(-1, 2)
 
             # Is the board holding still?
-            if circles_2d_cam is not None and prev_circles is not None:
-                motion = np.linalg.norm(circles_2d_cam - prev_circles, axis=2).mean()
+            if (
+                circles_2d_cam is not None
+                and prev_circles is not None
+                and circles_2d_cam.shape == prev_circles.shape
+            ):
+                motion = np.linalg.norm(circles_2d_cam - prev_circles, axis=1).mean()
                 still = still + 1 if motion < STILL_PX else 0
             else:
                 still = 0
@@ -161,7 +204,11 @@ if __name__ == '__main__':
 
             # Save automatically when still, settled, and in a new spot
             if circles_2d_cam is not None and still >= STILL_FRAMES and time.time() - pattern_time > SETTLE_S:
-                moved = last_saved is None or np.linalg.norm(circles_2d_cam - last_saved, axis=2).mean() > MOVE_PX
+                moved = (
+                    last_saved is None
+                    or circles_2d_cam.shape != last_saved.shape
+                    or np.linalg.norm(circles_2d_cam - last_saved, axis=1).mean() > MOVE_PX
+                )
                 if moved:
                     save_photo(og_frame, circles_2d_cam)
                     prev_circles, still = None, 0

@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 class Camera(object):
-    def __init__(self, src=0, width=1920, height=1080, fps=30):
+    def __init__(self, src=0, width=1920, height=1080, fps=30, exposure=None):
         # Pick the capture backend for this OS (DirectShow only exists on Windows)
         if sys.platform == 'darwin':
             backend = cv2.CAP_AVFOUNDATION
@@ -21,6 +21,10 @@ class Camera(object):
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self.capture.set(cv2.CAP_PROP_FPS, fps)
         self.capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+        if exposure is not None:
+            # DirectShow uses 0.25 for manual exposure and 0.75 for automatic.
+            self.capture.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+            self.capture.set(cv2.CAP_PROP_EXPOSURE, exposure)
        
         # Set FPS wait time
         self.fps = fps

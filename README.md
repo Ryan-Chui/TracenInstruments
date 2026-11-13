@@ -50,9 +50,13 @@ projector calibration is documented separately in
 
 The algorithm comparison harness is
 [structured_light_harness.py](structured_light_harness.py). It compares
-three-step phase shifting with single-shot coded-dot projection. The coded-dot
-decoder uses one camera image and the known projected pattern to recover
-camera/projector correspondences; it does not require a second camera.
+three-step phase shifting with single-shot coded-dot projection. The algorithm
+implementations are separated into
+[phase_shifting.py](phase_shifting.py) and
+[coded_dots.py](coded_dots.py) for reuse by future camera/projector data
+streams. The coded-dot decoder uses one camera image and the known projected
+pattern to recover camera/projector correspondences; it does not require a
+second camera.
 
 ```powershell
 python .\structured_light_harness.py

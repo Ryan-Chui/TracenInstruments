@@ -89,7 +89,11 @@ class CameraCalibrator(object):
             if charuco_ids is not None and len(charuco_ids) > 0:
                 if draw:
                     frame = cv2.aruco.drawDetectedCornersCharuco(frame, charuco_corners, charuco_ids)
-                if self.cam_mtx is not None and self.cam_dist is not None:
+                if (
+                    self.cam_mtx is not None
+                    and self.cam_dist is not None
+                    and len(charuco_ids) >= 6
+                ):
                     board_points = self.charuco_board.getChessboardCorners()[charuco_ids.ravel()]
                     ret, rvec, tvec = cv2.solvePnP(
                         board_points,

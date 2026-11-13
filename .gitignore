@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 venv/
 models/
+
+# Generated calibration photos and capture metadata
+data/CalibrationImgs/

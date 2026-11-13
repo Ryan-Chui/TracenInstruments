@@ -256,7 +256,11 @@ class ProjCamCalibrator(object):
         circles3D : Mat
             3D coordinates of the detected circles in the charuco board reference frame (z=0)
         """
-        ret, circles = cv2.findCirclesGrid(gray, self.circle_grid_size, flags=cv2.CALIB_CB_ASYMMETRIC_GRID + cv2.CALIB_CB_CLUSTERING)
+        ret, circles = cv2.findCirclesGrid(
+            gray,
+            self.circle_grid_size,
+            flags=cv2.CALIB_CB_ASYMMETRIC_GRID + cv2.CALIB_CB_CLUSTERING,
+        )
 
         circles3D = None
         if ret:
@@ -316,7 +320,7 @@ class ProjCamCalibrator(object):
         ys = np.linspace(margin, self.proj_height - grid_h - margin, rows).astype(int)
         return [(int(x), int(y)) for y in ys for x in xs]
 
-    def get_circle_grid_image(self, x, y):
+    def get_circle_grid_image(self, x, y, white_level=255):
         """
         Return an image of the circle grid
 
@@ -339,7 +343,9 @@ class ProjCamCalibrator(object):
         max_x = min(int(np.max(self.circle_2d[:,0])) + white_padding, self.proj_width)
         min_y = max(int(np.min(self.circle_2d[:,1])) - white_padding, 0)
         max_y = min(int(np.max(self.circle_2d[:,1])) + white_padding, self.proj_height)
-        img_circle[min_y:max_y, min_x:max_x] = 255
+        if not 0 <= white_level <= 255:
+            raise ValueError('white_level must be between 0 and 255')
+        img_circle[min_y:max_y, min_x:max_x] = white_level
         for c in self.circle_2d:
             img_circle = cv2.circle(img_circle, tuple(c.astype(np.int32)), self.circle_r, (0,0,0), cv2.FILLED, cv2.LINE_AA)
         return img_circle
