@@ -1,0 +1,18 @@
+python -m facesim.generate --flame models/flame2023_Open.pkl --out data/test \
+    --identities 5 --scans-per-identity 4 --ply --save-images 2
+python -m facesim.preview data/test/id_0000*/scan_000.npz -o look.png
+
+
+
+python -m faceid.cache data/synth_v1 --workers 8               # once, a few min (already done for synth_v1)
+python -m faceid.train data/synth_v1 --out runs/edgeconv       # trains; picks the best epoch on val people
+python -m faceid.evaluate runs/edgeconv                        # thresholds.json, report.txt, scores.png
+    Or:     python -m faceid.evaluate runs/edgeconv --far 1e-5 # stricter: fewer false accepts
+python -m faceid.gallery runs/edgeconv                         # demo: enroll 5 test people, try every kind of attempt
+
+
+
+Baseline for comparison (same losses, PointNet encoder = your TinyPointNet's layers):
+
+python -m faceid.train data/synth_v1 --out runs/pointnet --encoder pointnet
+python -m faceid.evaluate runs/pointnet
