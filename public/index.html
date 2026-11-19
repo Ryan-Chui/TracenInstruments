@@ -360,6 +360,143 @@
             font-weight: 500;
         }
 
+        .point-cloud-card {
+            width: 100%;
+            max-width: 900px;
+            margin: 32px auto 0;
+            padding: 25px 26px;
+            border-radius: 9px;
+            background: var(--surface);
+        }
+
+        .point-cloud-card h2 {
+            margin: 0;
+            color: var(--muted);
+            font-size: 17px;
+            font-weight: 500;
+        }
+
+        .point-cloud-description,
+        #pointCloudStatus,
+        #pointCloudError {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .point-cloud-viewport {
+            position: relative;
+            height: 440px;
+            margin-top: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface-2);
+        }
+
+        #pointCloudCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            cursor: grab;
+        }
+
+        #pointCloudCanvas:active {
+            cursor: grabbing;
+        }
+
+        .point-cloud-empty {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            color: var(--muted);
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .point-cloud-controls {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .point-cloud-controls button,
+        .point-cloud-controls .file-upload {
+            min-height: 42px;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface-2);
+            color: var(--text);
+            font: inherit;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .point-cloud-controls button:hover,
+        .point-cloud-controls .file-upload:hover {
+            filter: brightness(0.96);
+        }
+
+        .point-cloud-controls .file-upload input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            clip-path: inset(50%);
+        }
+
+        .point-cloud-controls .file-upload:focus-within {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .point-cloud-entry {
+            grid-column: 1 / -1;
+            display: grid;
+            gap: 8px;
+        }
+
+        .point-cloud-entry label {
+            font-weight: 600;
+        }
+
+        #pointCloudInput {
+            width: 100%;
+            min-height: 110px;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface-2);
+            color: var(--text);
+            font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            resize: vertical;
+        }
+
+        .point-cloud-entry button {
+            justify-self: start;
+            min-width: 140px;
+        }
+
+        #pointCloudStatus,
+        #pointCloudError {
+            margin: 12px 0 0;
+            white-space: pre-line;
+        }
+
+        #pointCloudError {
+            color: #b42318;
+        }
+
+        [data-theme="dark"] #pointCloudError {
+            color: #ff8c82;
+        }
+
         .video-container {
             position: relative;
             width: 100%;
@@ -502,6 +639,24 @@
                 margin-top: 30px;
                 padding: 18px;
             }
+
+            .point-cloud-card {
+                margin-top: 24px;
+                padding: 18px;
+            }
+
+            .point-cloud-viewport {
+                height: 55vh;
+                min-height: 300px;
+            }
+
+            .point-cloud-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .point-cloud-entry {
+                grid-column: auto;
+            }
         }
 
      </style>
@@ -592,25 +747,25 @@
                 </div>
                 <h6 class="centered">Mesh Shape: </h6>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" name="meshRadio" id="meshNone" value="none">
-                    <label class="form-check-label" for="inlineRadio1">None</label>
+                    <input class="form-check-input" type="radio" name="meshRadio" id="meshNone" value="none" checked>
+                    <label class="form-check-label" for="meshNone">None</label>
                 </div>
                 <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="meshRadio" id="meshTriangle" value="triangle">
-                    <label class="form-check-label" for="inlineRadio2">Triangle</label>
+                    <label class="form-check-label" for="meshTriangle">Triangle</label>
                 </div>
                 <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="meshRadio" id="meshSquare" value="square">
-                    <label class="form-check-label" for="inlineRadio3">Square</label>
+                    <label class="form-check-label" for="meshSquare">Square</label>
                 </div>
                 <h6 class="centered">Toggle Zoom: </h6>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" name="zoomRadio" id="zoomOn" value="on">
-                    <label class="form-check-label" for="inlineRadio1">On</label>
+                    <input class="form-check-input" type="radio" name="zoomRadio" id="zoomOn" value="on" checked>
+                    <label class="form-check-label" for="zoomOn">On</label>
                 </div>
                 <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="zoomRadio" id="zoomOff" value="off">
-                    <label class="form-check-label" for="inlineRadio2">Off</label>
+                    <label class="form-check-label" for="zoomOff">Off</label>
                 </div>
             </div>
         </div>
@@ -651,6 +806,35 @@
                     alt="Live face alignment camera feed"
                 >
             </div>
+        </section>
+
+        <section class="point-cloud-card" aria-labelledby="pointCloudHeading">
+            <h2 id="pointCloudHeading">3D Point Cloud</h2>
+            <p class="point-cloud-description">
+                The viewer is ready for scanner output. A backend can call
+                <code>window.updatePointCloud([[x, y, z], ...])</code> after a scan. Load a CSV, try an example, or enter one x, y, z point per line.
+            </p>
+            <div class="point-cloud-viewport">
+                <canvas id="pointCloudCanvas" aria-label="Interactive three-dimensional point cloud"></canvas>
+                <div id="pointCloudEmpty" class="point-cloud-empty">
+                    No points yet. A completed scan can send points to this viewport.
+                </div>
+            </div>
+            <div class="point-cloud-controls">
+                <label class="file-upload">
+                    Upload .csv
+                    <input id="pointCloudFile" type="file" accept=".csv,text/csv">
+                </label>
+                <button id="pointCloudPreset" type="button">Load preset point cloud</button>
+                <button id="pointCloudRandom" type="button">Generate random points</button>
+                <div class="point-cloud-entry">
+                    <label for="pointCloudInput">Points (x, y, z per line)</label>
+                    <textarea id="pointCloudInput" spellcheck="false" placeholder="0, 0, 0&#10;1, 2, 3&#10;2, 1, 0.5"></textarea>
+                    <button id="pointCloudPlot" type="button">Plot points</button>
+                </div>
+            </div>
+            <p id="pointCloudStatus" role="status" aria-live="polite">Waiting for points.</p>
+            <p id="pointCloudError" role="alert" hidden></p>
         </section>
     </main>
 
@@ -871,5 +1055,6 @@ beginButton.addEventListener("click", async () => {
         if (match) match.checked = true;
 
     </script>
+    <script src="point-cloud.js"></script>
 </body>
 </html>
