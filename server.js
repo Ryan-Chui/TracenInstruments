@@ -84,6 +84,11 @@ const server = http.createServer((req, res) => {
             contentType = 'text/css; charset=utf-8';
             break;
 
+        case '/point-cloud.js':
+            filePath = path.join(__dirname, 'public', 'point-cloud.js');
+            contentType = 'text/javascript; charset=utf-8';
+            break;
+
         default:
             res.statusCode = 404;
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');

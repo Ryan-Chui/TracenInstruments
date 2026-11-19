@@ -307,6 +307,40 @@
             margin: 8px 0;
         }
 
+        .modal-options .mesh-color-control {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 12px 0;
+        }
+
+        .mesh-color-control label {
+            margin: 0;
+        }
+
+        .mesh-color-control input[type="color"] {
+            width: 48px;
+            height: 34px;
+            padding: 2px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface);
+            cursor: pointer;
+        }
+
+        .mesh-row-control {
+            margin: 12px 0;
+        }
+
+        .modal-options .mesh-row-control label {
+            margin: 0 0 6px;
+        }
+
+        .mesh-row-control input {
+            max-width: 100%;
+        }
+
         .verification {
             margin-top: 88px;
         }
@@ -758,6 +792,14 @@
                     <input class="form-check-input" type="radio" name="meshRadio" id="meshSquare" value="square">
                     <label class="form-check-label" for="meshSquare">Square</label>
                 </div>
+                <div class="mesh-row-control">
+                    <label for="meshRowWidth">Points per row (optional)</label>
+                    <input class="form-control" type="number" id="meshRowWidth" min="2" step="1" placeholder="Auto-detect">
+                </div>
+                <div class="mesh-color-control">
+                    <label for="meshColor">Mesh Color</label>
+                    <input type="color" id="meshColor" value="#d946ef">
+                </div>
                 <h6 class="centered">Toggle Zoom: </h6>
                 <div class="form-check form-check-inline">
                     <input class="form-check-input" type="radio" name="zoomRadio" id="zoomOn" value="on" checked>
@@ -812,7 +854,7 @@
             <h2 id="pointCloudHeading">3D Point Cloud</h2>
             <p class="point-cloud-description">
                 The viewer is ready for scanner output. A backend can call
-                <code>window.updatePointCloud([[x, y, z], ...])</code> after a scan. Load a CSV, try an example, or enter one x, y, z point per line.
+                <code>window.updatePointCloud(points, { pointsPerRow: N })</code> after a scan. Set Points per row in Viewport Settings for row-ordered CSV data. Load a CSV, try an example, or enter one x, y, z point per line.
             </p>
             <div class="point-cloud-viewport">
                 <canvas id="pointCloudCanvas" aria-label="Interactive three-dimensional point cloud"></canvas>

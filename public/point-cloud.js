@@ -9,13 +9,21 @@
     const error = document.getElementById("pointCloudError");
     const fileInput = document.getElementById("pointCloudFile");
     const pointSizeSlider = document.getElementById("customRange");
+    const meshColorInput = document.getElementById("meshColor");
+    const meshRowWidthInput = document.getElementById("meshRowWidth");
     const meshRadios = document.querySelectorAll('input[name="meshRadio"]');
     const MAX_POINTS = 100000;
+    const MAX_LOCAL_MESH_POINTS = 3000;
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
     const state = {
         points: new Float32Array(),
         mesh: new Float32Array(),
+        rawPoints: [],
+        normalizedPoints: [],
+        statusBase: "",
+        meshDescription: "",
+        meshWarning: "",
         axes: new Float32Array([
             -1, -1, -1, 1, -1, -1,
             -1, -1, -1, -1, 1, -1,
@@ -249,7 +257,8 @@
 
         if (state.mesh.length) {
             gl.uniform1i(locations.useVertexColor, 0);
-            gl.uniform4f(locations.color, 0.10, 0.16, 0.26, 0.55);
+            const meshColor = hexToRgb(meshColorInput.value);
+            gl.uniform4f(locations.color, meshColor[0], meshColor[1], meshColor[2], 0.9);
             gl.disableVertexAttribArray(1);
             bindPositionBuffer(meshBuffer);
             gl.drawArrays(gl.LINES, 0, state.mesh.length / 3);
@@ -324,17 +333,177 @@
         });
     }
 
-    function makeMesh(points, kind) {
-        if (kind === "none") return new Float32Array();
-        const lines = [];
-        const addEdge = (a, b) => lines.push(...points[a], ...points[b]);
-        const groupSize = kind === "triangle" ? 3 : 4;
-        for (let i = 0; i + groupSize <= points.length; i += groupSize) {
-            for (let edge = 0; edge < groupSize; edge++) {
-                addEdge(i + edge, i + (edge + 1) % groupSize);
+    function detectGrid(points, rowWidth) {
+        if (rowWidth >= 2 && points.length % rowWidth === 0 && points.length / rowWidth >= 2) {
+            return {
+                grid: {
+                    columns: rowWidth,
+                    rows: points.length / rowWidth,
+                    cells: Int32Array.from(points, (_, index) => index)
+                },
+                warning: ""
+            };
+        }
+        const rowWidthWarning = rowWidth
+            ? `Points per row (${rowWidth}) must divide the point count and leave at least two rows.`
+            : "";
+        const key = (value) => Number(value.toPrecision(9));
+        const xs = new Set();
+        const ys = new Set();
+        for (const point of points) {
+            xs.add(key(point[0]));
+            ys.add(key(point[1]));
+        }
+        const uniqueX = [...xs].sort((a, b) => a - b);
+        const uniqueY = [...ys].sort((a, b) => a - b);
+        if (uniqueX.length < 2 || uniqueY.length < 2 || uniqueX.length * uniqueY.length !== points.length) {
+            return { grid: null, warning: rowWidthWarning };
+        }
+        const xIndex = new Map(uniqueX.map((value, index) => [value, index]));
+        const yIndex = new Map(uniqueY.map((value, index) => [value, index]));
+        const cells = new Int32Array(points.length).fill(-1);
+        for (let index = 0; index < points.length; index++) {
+            const cell = yIndex.get(key(points[index][1])) * uniqueX.length + xIndex.get(key(points[index][0]));
+            if (cells[cell] !== -1) return { grid: null, warning: rowWidthWarning };
+            cells[cell] = index;
+        }
+        return {
+            grid: { columns: uniqueX.length, rows: uniqueY.length, cells },
+            warning: rowWidthWarning
+        };
+    }
+
+    function insertNearest(neighbors, index, distanceSquared, limit) {
+        if (neighbors.length === limit && distanceSquared >= neighbors[neighbors.length - 1].distanceSquared) return;
+        let position = neighbors.length;
+        while (position > 0 && neighbors[position - 1].distanceSquared > distanceSquared) position--;
+        neighbors.splice(position, 0, { index, distanceSquared });
+        if (neighbors.length > limit) neighbors.pop();
+    }
+
+    function nearestNeighborTriangles(points) {
+        const neighborCount = 6;
+        const neighbors = Array.from({ length: points.length }, () => []);
+        for (let first = 0; first < points.length; first++) {
+            for (let second = first + 1; second < points.length; second++) {
+                const dx = points[first][0] - points[second][0];
+                const dy = points[first][1] - points[second][1];
+                const dz = points[first][2] - points[second][2];
+                const distanceSquared = dx * dx + dy * dy + dz * dz;
+                insertNearest(neighbors[first], second, distanceSquared, neighborCount);
+                insertNearest(neighbors[second], first, distanceSquared, neighborCount);
             }
         }
-        return new Float32Array(lines);
+
+        const neighborSets = neighbors.map((list) => new Set(list.map((neighbor) => neighbor.index)));
+        const triangles = [];
+        for (let center = 0; center < points.length; center++) {
+            const local = neighbors[center]
+                .filter((neighbor) => neighbor.index > center && neighborSets[neighbor.index].has(center))
+                .map((neighbor) => neighbor.index);
+            for (let first = 0; first < local.length; first++) {
+                for (let second = first + 1; second < local.length; second++) {
+                    const a = local[first];
+                    const b = local[second];
+                    if (neighborSets[a].has(b) && neighborSets[b].has(a)) {
+                        triangles.push(center, a, b);
+                    }
+                }
+            }
+        }
+        return triangles;
+    }
+
+    function makeMesh(rawPoints, normalizedPoints, kind, rowWidth) {
+        if (kind === "none") return { vertices: new Float32Array(), description: "", warning: "" };
+        const lines = [];
+        const edgeKeys = new Set();
+        const addEdge = (a, b) => {
+            if (a === b) return;
+            const key = a < b ? a * rawPoints.length + b : b * rawPoints.length + a;
+            if (edgeKeys.has(key)) return;
+            edgeKeys.add(key);
+            lines.push(...normalizedPoints[a], ...normalizedPoints[b]);
+        };
+        const gridResult = detectGrid(rawPoints, rowWidth);
+        const grid = gridResult.grid;
+        if (grid) {
+            const at = (column, row) => grid.cells[row * grid.columns + column];
+            for (let row = 0; row < grid.rows; row++) {
+                for (let column = 0; column < grid.columns; column++) {
+                    const point = at(column, row);
+                    if (column + 1 < grid.columns) addEdge(point, at(column + 1, row));
+                    if (row + 1 < grid.rows) addEdge(point, at(column, row + 1));
+                    if (kind === "triangle" && column + 1 < grid.columns && row + 1 < grid.rows) {
+                        addEdge(point, at(column + 1, row + 1));
+                    }
+                }
+            }
+            return {
+                vertices: new Float32Array(lines),
+                description: kind === "triangle"
+                    ? `Triangle mesh: grid connectivity (${grid.columns} points per row).`
+                    : `Square mesh: grid connectivity (${grid.columns} points per row).`,
+                warning: gridResult.warning
+            };
+        }
+        if (kind === "square") {
+            return {
+                vertices: new Float32Array(),
+                description: "",
+                warning: [gridResult.warning, "Square mesh requires an x/y grid or a valid points-per-row value."].filter(Boolean).join(" ")
+            };
+        }
+        if (rawPoints.length < 3) {
+            return { vertices: new Float32Array(), description: "", warning: [gridResult.warning, "Triangle mesh requires at least 3 points."].filter(Boolean).join(" ") };
+        }
+        if (rawPoints.length > MAX_LOCAL_MESH_POINTS) {
+            return {
+                vertices: new Float32Array(),
+                description: "",
+                warning: [gridResult.warning, `Local triangle meshing is limited to ${MAX_LOCAL_MESH_POINTS.toLocaleString()} scattered points.`].filter(Boolean).join(" ")
+            };
+        }
+
+        const triangles = nearestNeighborTriangles(normalizedPoints);
+        if (!triangles.length) {
+            return { vertices: new Float32Array(), description: "", warning: [gridResult.warning, "No local 3D neighbor triangles could be formed from these points."].filter(Boolean).join(" ") };
+        }
+        for (let index = 0; index < triangles.length; index += 3) {
+            addEdge(triangles[index], triangles[index + 1]);
+            addEdge(triangles[index + 1], triangles[index + 2]);
+            addEdge(triangles[index + 2], triangles[index]);
+        }
+        return {
+            vertices: new Float32Array(lines),
+            description: "Triangle mesh: mutual 6-nearest-neighbor connections in 3D.",
+            warning: gridResult.warning
+        };
+    }
+
+    function selectedRowWidth() {
+        return Number.parseInt(meshRowWidthInput.value, 10) || 0;
+    }
+
+    function rebuildMesh() {
+        if (!state.points.length) return;
+        const mesh = makeMesh(state.rawPoints, state.normalizedPoints, currentMeshKind(), selectedRowWidth());
+        state.mesh = mesh.vertices;
+        state.meshDescription = mesh.description;
+        state.meshWarning = mesh.warning;
+        if (gl) uploadBuffer(meshBuffer, state.mesh);
+        updateStatus();
+        requestDraw();
+    }
+
+    function updateStatus() {
+        const meshMessage = state.meshWarning || state.meshDescription;
+        status.textContent = [state.statusBase, meshMessage].filter(Boolean).join(" ");
+    }
+
+    function hexToRgb(hex) {
+        const value = Number.parseInt(hex.slice(1), 16);
+        return [(value >> 16 & 255) / 255, (value >> 8 & 255) / 255, (value & 255) / 255];
     }
 
     function currentMeshKind() {
@@ -376,17 +545,23 @@
             }
         }
 
-        state.points = positions;
-        state.mesh = makeMesh(points.map((point) => point.map((coordinate, axis) =>
+        state.rawPoints = points;
+        state.normalizedPoints = points.map((point) => point.map((coordinate, axis) =>
             ranges[axis] ? ((coordinate - min[axis]) / ranges[axis] - 0.5) * (ranges[axis] / largestRange) * 2 : 0
-        )), currentMeshKind());
+        ));
+        state.points = positions;
+        const mesh = makeMesh(state.rawPoints, state.normalizedPoints, currentMeshKind(), selectedRowWidth());
+        state.mesh = mesh.vertices;
+        state.meshDescription = mesh.description;
+        state.meshWarning = mesh.warning;
         if (gl) {
             uploadBuffer(positionBuffer, state.points);
             uploadBuffer(colorBuffer, colors);
             uploadBuffer(meshBuffer, state.mesh);
         }
         emptyMessage.hidden = true;
-        status.textContent = `Loaded ${points.length.toLocaleString()} point${points.length === 1 ? "" : "s"} from ${source}.${skipped ? ` Skipped ${skipped} invalid line${skipped === 1 ? "" : "s"}.` : ""}`;
+        state.statusBase = `Loaded ${points.length.toLocaleString()} point${points.length === 1 ? "" : "s"} from ${source}.${skipped ? ` Skipped ${skipped} invalid line${skipped === 1 ? "" : "s"}.` : ""}`;
+        updateStatus();
         requestDraw();
     }
 
@@ -415,8 +590,9 @@
         renderPoints(points, source, skipped);
     }
 
-    function receiveScannerPoints(value) {
+    function receiveScannerPoints(value, pointsPerRow = 0) {
         try {
+            meshRowWidthInput.value = pointsPerRow >= 2 ? String(pointsPerRow) : "";
             renderPoints(toPoints(value), "scanner");
         } catch (pointError) {
             showError(`Could not load scanner points: ${pointError.message}`);
@@ -442,21 +618,34 @@
     }
 
     function makeRandomCloud() {
-        return Array.from({ length: 500 }, () => {
-            const z = Math.random() * 2 - 1;
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.sqrt(1 - z * z) * (0.65 + Math.random() * 0.35);
-            return [radius * Math.cos(angle), radius * Math.sin(angle), z];
-        });
+        const columns = 25;
+        const rows = 20;
+        const points = [];
+        for (let row = 0; row < rows; row++) {
+            const baseLatitude = (-70 + 140 * row / (rows - 1)) * Math.PI / 180;
+            for (let column = 0; column < columns; column++) {
+                const longitude = 2 * Math.PI * column / columns + (Math.random() - 0.5) * 0.05;
+                const latitude = baseLatitude + (Math.random() - 0.5) * 0.05;
+                const radius = 0.9 + Math.random() * 0.2;
+                points.push([
+                    radius * Math.cos(latitude) * Math.cos(longitude),
+                    radius * Math.cos(latitude) * Math.sin(longitude),
+                    radius * Math.sin(latitude)
+                ]);
+            }
+        }
+        return points;
     }
 
     document.getElementById("pointCloudPlot").addEventListener("click", () => {
         loadText(input.value, "manual input");
     });
     document.getElementById("pointCloudPreset").addEventListener("click", () => {
+        meshRowWidthInput.value = "25";
         renderPoints(makePreset(), "preset point cloud");
     });
     document.getElementById("pointCloudRandom").addEventListener("click", () => {
+        meshRowWidthInput.value = "25";
         renderPoints(makeRandomCloud(), "random generator");
     });
     fileInput.addEventListener("change", async () => {
@@ -469,6 +658,7 @@
         }
         try {
             const text = await file.text();
+            meshRowWidthInput.value = "";
             input.value = text;
             loadText(text, file.name);
         } catch (fileError) {
@@ -479,18 +669,13 @@
     });
 
     pointSizeSlider.addEventListener("input", requestDraw);
+    meshColorInput.addEventListener("input", requestDraw);
     meshRadios.forEach((radio) => {
         radio.addEventListener("change", () => {
-            if (!state.points.length) return;
-            const points = [];
-            for (let index = 0; index < state.points.length; index += 3) {
-                points.push([state.points[index], state.points[index + 1], state.points[index + 2]]);
-            }
-            state.mesh = makeMesh(points, currentMeshKind());
-            if (gl) uploadBuffer(meshBuffer, state.mesh);
-            requestDraw();
+            rebuildMesh();
         });
     });
+    meshRowWidthInput.addEventListener("change", rebuildMesh);
     document.querySelectorAll('input[name="zoomRadio"]').forEach((radio) => {
         radio.addEventListener("change", () => {
             state.zoomEnabled = document.getElementById("zoomOn").checked;
@@ -541,9 +726,9 @@
     }, { passive: false });
 
     window.addEventListener("pointcloud:points", (event) => {
-        receiveScannerPoints(event.detail?.points ?? event.detail);
+        receiveScannerPoints(event.detail?.points ?? event.detail, event.detail?.pointsPerRow);
     });
-    window.updatePointCloud = receiveScannerPoints;
+    window.updatePointCloud = (points, options = {}) => receiveScannerPoints(points, options.pointsPerRow);
 
     if (initializeRenderer()) {
         new ResizeObserver(requestDraw).observe(viewport);
