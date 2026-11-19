@@ -35,6 +35,134 @@ from phase_shifting import (
     three_step_patterns,
 )
 
+APRILTAG_IDS = (0, 1, 2, 3)
+
+
+def _april_tag_dictionary():
+    if not hasattr(cv2, "aruco") or not hasattr(cv2.aruco, "DICT_APRILTAG_36h11"):
+        raise RuntimeError(
+            "This OpenCV build does not provide AprilTag support. "
+            "Install opencv-contrib-python."
+        )
+    return cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36h11)
+
+
+def add_roi_tags(pattern, args):
+    """Overlay four uniquely identified AprilTags on the projector preview."""
+    image = np.ascontiguousarray(np.asarray(pattern, dtype=np.uint8)).copy()
+    if image.ndim == 2:
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    if image.ndim != 3 or image.shape[2] != 3:
+        raise ValueError("ROI preview pattern must be grayscale or BGR.")
+
+    tag_size = args.roi_tag_size
+    margin = args.roi_tag_margin
+    quiet_zone = max(4, tag_size // 8)
+    height, width = image.shape[:2]
+    if (
+        tag_size <= 0
+        or margin < quiet_zone
+        or 2 * (tag_size + margin) > min(width, height)
+    ):
+        raise ValueError("ROI tag size and margin do not fit inside the projector pattern.")
+
+    dictionary = _april_tag_dictionary()
+    tag_centers = {
+        0: (margin + tag_size // 2, margin + tag_size // 2),
+        1: (width - margin - tag_size // 2, margin + tag_size // 2),
+        2: (width - margin - tag_size // 2, height - margin - tag_size // 2),
+        3: (margin + tag_size // 2, height - margin - tag_size // 2),
+    }
+    for tag_id, center in tag_centers.items():
+        marker = cv2.aruco.generateImageMarker(dictionary, tag_id, tag_size)
+        x = center[0] - tag_size // 2
+        y = center[1] - tag_size // 2
+        cv2.rectangle(
+            image,
+            (x - quiet_zone, y - quiet_zone),
+            (x + tag_size + quiet_zone - 1, y + tag_size + quiet_zone - 1),
+            (255, 255, 255),
+            -1,
+        )
+        image[y:y + tag_size, x:x + tag_size] = cv2.cvtColor(
+            marker, cv2.COLOR_GRAY2BGR
+        )
+    return image, tag_centers
+
+
+def detect_camera_roi(frame, projector_size, tag_centers):
+    """Estimate the camera ROI from the four projected AprilTag centers."""
+    if frame is None:
+        raise RuntimeError("Could not obtain a camera frame for automatic ROI detection.")
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
+    dictionary = _april_tag_dictionary()
+    parameters = cv2.aruco.DetectorParameters()
+    detector = cv2.aruco.ArucoDetector(dictionary, parameters)
+    corners, ids, _ = detector.detectMarkers(gray)
+    if ids is None:
+        raise RuntimeError(
+            "Automatic ROI detection found no AprilTags. "
+            "Ensure all four preview tags are visible."
+        )
+
+    detected = {
+        int(tag_id): np.mean(marker_corners.reshape(4, 2), axis=0)
+        for marker_corners, tag_id in zip(corners, ids.ravel())
+        if int(tag_id) in APRILTAG_IDS
+    }
+    missing = [tag_id for tag_id in APRILTAG_IDS if tag_id not in detected]
+    if missing:
+        raise RuntimeError(
+            "Automatic ROI detection is missing AprilTag(s): "
+            + ", ".join(str(tag_id) for tag_id in missing)
+        )
+
+    projector_points = np.asarray(
+        [tag_centers[tag_id] for tag_id in APRILTAG_IDS], dtype=np.float32
+    )
+    camera_points = np.asarray(
+        [detected[tag_id] for tag_id in APRILTAG_IDS], dtype=np.float32
+    )
+    homography, _ = cv2.findHomography(projector_points, camera_points, 0)
+    if homography is None:
+        raise RuntimeError("Automatic ROI detection could not estimate the projected area.")
+
+    projector_width, projector_height = projector_size
+    projector_corners = np.asarray(
+        [[[0, 0], [projector_width - 1, 0],
+          [projector_width - 1, projector_height - 1], [0, projector_height - 1]]],
+        dtype=np.float32,
+    )
+    camera_corners = cv2.perspectiveTransform(
+        projector_corners, homography
+    ).reshape(4, 2)
+    x0, y0 = np.floor(camera_corners.min(axis=0)).astype(int)
+    x1, y1 = np.ceil(camera_corners.max(axis=0)).astype(int)
+    frame_height, frame_width = gray.shape[:2]
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(frame_width, x1), min(frame_height, y1)
+    width, height = x1 - x0, y1 - y0
+    if width <= 0 or height <= 0:
+        raise RuntimeError("Automatic ROI detection produced an invalid camera rectangle.")
+    return x0, y0, width, height
+
+
+def crop_camera_frame(frame, camera_roi):
+    """Crop only the displayed frame; preserve full-frame coordinates for scanning."""
+    if camera_roi is None:
+        return frame
+    x, y, width, height = camera_roi
+    frame_height, frame_width = frame.shape[:2]
+    x0, y0 = max(0, x), max(0, y)
+    x1, y1 = min(frame_width, x + width), min(frame_height, y + height)
+    if x1 <= x0 or y1 <= y0:
+        raise RuntimeError("Camera ROI is outside the camera frame.")
+    return frame[y0:y1, x0:x1]
+
+
+def show_camera_frame(frame, camera_roi):
+    cv2.imshow("Camera", cv2.resize(crop_camera_frame(frame, camera_roi), (960, 540)))
+
 
 def run_synthetic(args):
     rng = np.random.default_rng(args.seed)
@@ -140,9 +268,7 @@ def select_camera_roi(camera, projector, pattern, args):
     if args.full_frame:
         return None
 
-    image = np.asarray(pattern, dtype=np.uint8)
-    if image.ndim == 2:
-        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    image, tag_centers = add_roi_tags(pattern, args)
     projector.show(image)
 
     frame = None
@@ -158,16 +284,28 @@ def select_camera_roi(camera, projector, pattern, args):
             cv2.imshow("Camera", frame)
         cv2.waitKey(10)
     if frame is None:
-        raise RuntimeError("Could not obtain a camera frame for ROI selection.")
+        raise RuntimeError("Could not obtain a camera frame for ROI detection.")
 
-    print("Drag a rectangle around the scan area, then press ENTER or SPACE. "
-          "Press C to cancel.")
-    roi = cv2.selectROI("Camera", frame, fromCenter=False, showCrosshair=True)
-    x, y, width, height = (int(value) for value in roi)
-    if width <= 0 or height <= 0:
-        raise RuntimeError("No scan area was selected.")
-    print(f"Selected camera ROI: x={x}, y={y}, width={width}, height={height}")
-    return x, y, width, height
+    if args.manual_roi:
+        print("Drag a rectangle around the scan area, then press ENTER or SPACE. "
+              "Press C to cancel.")
+        roi = cv2.selectROI("Camera", frame, fromCenter=False, showCrosshair=True)
+        x, y, width, height = (int(value) for value in roi)
+        if width <= 0 or height <= 0:
+            raise RuntimeError("No scan area was selected.")
+        print(f"Selected camera ROI: x={x}, y={y}, width={width}, height={height}")
+        return x, y, width, height
+
+    roi = detect_camera_roi(
+        frame,
+        (projector.width, projector.height),
+        tag_centers,
+    )
+    print(
+        "Detected camera ROI: "
+        f"x={roi[0]}, y={roi[1]}, width={roi[2]}, height={roi[3]}"
+    )
+    return roi
 
 
 def capture_frames(projector, camera, patterns, args):
@@ -184,7 +322,7 @@ def capture_frames(projector, camera, patterns, args):
             candidate = camera.get_frame()
             if candidate is not None:
                 frame = candidate
-                cv2.imshow("Camera", cv2.resize(frame, (960, 540)))
+                show_camera_frame(frame, args.camera_roi)
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
                 raise KeyboardInterrupt
@@ -216,7 +354,7 @@ def capture_color_frames(projector, camera, patterns, args):
             candidate = camera.get_frame()
             if candidate is not None:
                 frame = candidate
-                cv2.imshow("Camera", cv2.resize(frame, (960, 540)))
+                show_camera_frame(frame, args.camera_roi)
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
                 raise KeyboardInterrupt
@@ -585,8 +723,7 @@ def run_dots_hardware(args, calibration):
             candidate = camera.get_frame()
             if candidate is not None:
                 frame = candidate
-                preview = cv2.resize(frame, (960, 540))
-                cv2.imshow("Camera", preview)
+                show_camera_frame(frame, args.camera_roi)
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
                 return
@@ -677,7 +814,7 @@ def parse_args():
         "--projector-settle",
         type=float,
         default=1.0,
-        help="Seconds to wait after showing a pattern before ROI selection.",
+        help="Seconds to wait after showing a pattern before ROI detection.",
     )
     parser.add_argument("--projector-width", type=int, default=1280)
     parser.add_argument("--projector-height", type=int, default=720)
@@ -759,7 +896,24 @@ def parse_args():
     parser.add_argument(
         "--full-frame",
         action="store_true",
-        help="Skip manual ROI selection and scan the complete camera image.",
+        help="Skip ROI detection and scan the complete camera image.",
+    )
+    parser.add_argument(
+        "--manual-roi",
+        action="store_true",
+        help="Use the interactive ROI selector instead of AprilTag detection.",
+    )
+    parser.add_argument(
+        "--roi-tag-size",
+        type=int,
+        default=160,
+        help="Projector pixels used for each automatic ROI AprilTag.",
+    )
+    parser.add_argument(
+        "--roi-tag-margin",
+        type=int,
+        default=20,
+        help="Projector-pixel margin between each ROI tag and the pattern edge.",
     )
     parser.add_argument(
         "--background-depth-tolerance",

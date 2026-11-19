@@ -178,10 +178,14 @@ python .\structured_light_harness.py --hardware --algorithm color_stripes `
 Leave a strip of background visible around the subject inside the selected
 ROI so the background depth can be estimated.
 
-By default, hardware mode first shows the live camera frame and lets you drag
-a rectangle around the scan area. Press Enter or Space to accept it; press C
-to cancel. No face detection is used. To skip selection and scan the complete
-camera frame, use `--full-frame`.
+By default, hardware mode projects a preview containing four AprilTags at its
+corners, detects them in the camera image, and automatically computes the scan
+area. The live camera preview is then cropped to that area. The underlying
+captured frames remain in full camera coordinates so the existing calibration
+continues to apply. If detection is not suitable for a setup, use
+`--manual-roi` for the interactive selector, or use `--full-frame` to scan the
+complete camera frame. The tag size and edge margin can be adjusted with
+`--roi-tag-size` and `--roi-tag-margin`.
 
 For scripted runs, apply a camera-image rectangle `X Y WIDTH HEIGHT`:
 
